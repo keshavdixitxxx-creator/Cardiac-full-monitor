@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardiac Monitor — Symptom Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070B12'/%3E%3Cpath fill='%234CE0B3' d='M16 27S4 19.7 4 11.6C4 7.9 6.9 5 10.5 5c2.2 0 4.1 1.1 5.5 2.9C17.4 6.1 19.3 5 21.5 5 25.1 5 28 7.9 28 11.6 28 19.7 16 27 16 27z'/%3E%3Cpath fill='none' stroke='%23070B12' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M6 15h5l1.6-3.4L15 19l2-4 1.5 2.6h5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070B12;
+    --panel:#0D141F;
+    --panel-2:#111B29;
+    --stroke:#1E2C3B;
+    --dot:rgba(255,255,255,.05);
+    --text:#E7EDF3;
+    --text-soft:#7E93A3;
+    --green:#4CE0B3;
+    --green-dim:rgba(76,224,179,.12);
+    --amber:#E8A94C;
+    --amber-dim:rgba(232,169,76,.12);
+    --red:#FF5C5C;
+    --red-dim:rgba(255,92,92,.14);
+  }
+  [data-theme="light"]{
+    --bg:#EFF3F5;
+    --panel:#FFFFFF;
+    --panel-2:#F5F8F9;
+    --stroke:#D9E2E7;
+    --dot:rgba(10,20,30,.05);
+    --text:#0F1B24;
+    --text-soft:#5B6E79;
+    --green:#1E8A6C;
+    --green-dim:rgba(30,138,108,.10);
+    --amber:#B9762A;
+    --amber-dim:rgba(185,118,42,.10);
+    --red:#C43D3D;
+    --red-dim:rgba(196,61,61,.10);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 1px) 0 0/22px 22px,
+      var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Mono',monospace;
+    min-height:100vh;
+    transition:background .25s ease, color .25s ease;
+  }
+  h1,h2,h3,.display{ font-family:'Space Grotesk',sans-serif; margin:0; }
+  .frame{ max-width:1080px; margin:0 auto; padding:22px 20px 70px; }
+
+  /* ---------- Top chrome ---------- */
+  .chrome{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
+    padding-bottom:18px; border-bottom:1px solid var(--stroke); margin-bottom:20px;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand h1{ font-size:20px; letter-spacing:.01em; }
+  .brand .sub{ font-size:11.5px; color:var(--text-soft); margin-top:2px; }
+  .heart-icon{ width:34px; height:34px; flex-shrink:0; }
+  .heart-icon path{ fill:var(--green); transition:fill .3s ease; }
+  .beat{ animation:beat 1.1s ease-in-out infinite; transform-origin:center; }
+  @keyframes beat{ 0%,100%{ transform:scale(1); } 25%{ transform:scale(1.16); } 40%{ transform:scale(0.98); } }
+
+  .chrome-controls{ display:flex; gap:8px; align-items:center; }
+  .icon-btn{
+    background:var(--panel); border:1px solid var(--stroke); color:var(--text-soft);
+    font-family:'IBM Plex Mono'; font-size:12px; padding:8px 12px; border-radius:6px; cursor:pointer;
+  }
+  .icon-btn.on{ color:var(--green); border-color:var(--green); }
+
+  .disclaimer-strip{
+    font-size:11.5px; color:var(--text-soft); background:var(--panel); border:1px solid var(--stroke);
+    border-radius:6px; padding:9px 14px; margin-bottom:22px;
+  }
+  .disclaimer-strip strong{ color:var(--text); }
+
+  /* ---------- Tabs ---------- */
+  .tabs{ display:flex; gap:6px; margin-bottom:22px; flex-wrap:wrap; }
+  .tab-btn{
+    background:var(--panel); border:1px solid var(--stroke); color:var(--text-soft);
+    font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; padding:10px 16px;
+    border-radius:7px; cursor:pointer;
+  }
+  .tab-btn.active{ color:var(--bg); background:var(--green); border-color:var(--green); }
+  [data-theme="light"] .tab-btn.active{ color:#fff; }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  /* ---------- Monitor top row ---------- */
+  .monitor-row{ display:grid; grid-template-columns:1.3fr 1fr; gap:16px; margin-bottom:20px; }
+  @media (max-width:760px){ .monitor-row{ grid-template-columns:1fr; } }
+  .panel{
+    background:var(--panel); border:1px solid var(--stroke); border-radius:10px; padding:20px;
+  }
+  .panel h2{ font-size:15px; margin-bottom:14px; }
+  .panel .hint{ font-size:11.5px; color:var(--text-soft); margin-top:-8px; margin-bottom:14px; }
+
+  .vitals{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .vital-cell{ background:var(--panel-2); border:1px solid var(--stroke); border-radius:8px; padding:12px 14px; }
+  .vital-cell .vlabel{ font-size:10.5px; color:var(--text-soft); letter-spacing:.03em; }
+  .vital-cell .vnum{ font-size:26px; font-weight:700; margin-top:3px; }
+  .vital-cell .vunit{ font-size:11px; color:var(--text-soft); }
+
+  .status-pill{ display:inline-block; padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:600; margin-top:10px; }
+
+  .ecg-strip{ margin-top:14px; height:64px; border-top:1px solid var(--stroke); padding-top:10px; }
+  .ecg-strip svg{ width:100%; height:100%; display:block; }
+  .ecg-line{ fill:none; stroke:var(--green); stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray:1400; stroke-dashoffset:1400; animation:draw 3.2s linear infinite; transition:stroke .3s ease; }
+  @keyframes draw{ to{ stroke-dashoffset:0; } }
+
+  .timer-box{ text-align:center; }
+  .timer-box .tnum{ font-size:38px; font-weight:700; }
+  .timer-box .tlabel{ font-size:11px; color:var(--text-soft); margin-top:2px; }
+  .timer-box.urgent .tnum{ color:var(--red); }
+  .timer-box.urgent .tcallout{ color:var(--red); font-weight:700; margin-top:8px; }
+
+  /* ---------- Symptom input: body map + presets + search ---------- */
+  .input-row{ display:grid; grid-template-columns:180px 1fr; gap:20px; }
+  @media (max-width:640px){ .input-row{ grid-template-columns:1fr; } }
+  .mini-label{ font-size:11px; color:var(--text-soft); margin-bottom:8px; }
+  .bodymap-box{ text-align:center; }
+  .bodymap{ width:100%; max-width:140px; height:auto; }
+  .region{ fill:var(--panel-2); stroke:var(--stroke); stroke-width:1.5; cursor:pointer; transition:fill .15s ease, stroke .15s ease; }
+  .region:hover{ fill:var(--green-dim); stroke:var(--green); }
+  .region.picked{ fill:var(--red-dim); stroke:var(--red); }
+  #mapSelected{ margin-top:8px; margin-bottom:0; min-height:14px; }
+
+  .input-right{ min-width:0; }
+  .preset-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .preset-btn{
+    background:var(--panel-2); border:1px solid var(--stroke); color:var(--text);
+    font-family:'IBM Plex Mono'; font-size:11.5px; padding:7px 12px; border-radius:20px; cursor:pointer;
+  }
+  .preset-btn:hover{ border-color:var(--green); color:var(--green); }
+  .search-input{
+    width:100%; background:var(--panel-2); border:1px solid var(--stroke); color:var(--text);
+    font-family:'IBM Plex Mono'; font-size:12.5px; padding:9px 11px; border-radius:6px;
+  }
+  .add-row{ display:flex; gap:8px; }
+  .add-row .search-input{ flex:1; }
+
+  /* ---------- Symptom cards ---------- */
+  .symptom-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:640px){ .symptom-grid{ grid-template-columns:1fr; } }
+  .symptom-card{ background:var(--panel-2); border:1px solid var(--stroke); border-radius:8px; padding:13px 15px; transition:border-color .15s ease, opacity .15s ease; }
+  .symptom-card.active{ border-color:var(--green); }
+  .symptom-card.active.severe{ border-color:var(--red); }
+  .symptom-card.hidden{ display:none; }
+  .symptom-card.custom .symptom-name::after{ content:'custom'; font-size:9px; color:var(--text-soft); border:1px solid var(--stroke); border-radius:3px; padding:1px 5px; margin-left:7px; font-family:'IBM Plex Mono'; vertical-align:1px; }
+  .symptom-top{ display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
+  .symptom-top input{ width:16px; height:16px; margin-top:3px; accent-color:var(--green); flex-shrink:0; }
+  .symptom-name{ font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; }
+  .symptom-desc{ font-size:11px; color:var(--text-soft); margin-top:2px; }
+  .card-extra{ display:none; margin-top:11px; }
+  .symptom-card.active .card-extra{ display:block; }
+  .severity-row{ display:flex; align-items:center; gap:6px; }
+  .face-btn{
+    flex:1; background:var(--panel); border:1px solid var(--stroke); color:var(--text-soft);
+    font-size:16px; padding:6px 0; border-radius:6px; cursor:pointer; line-height:1;
+  }
+  .face-btn .flabel{ display:block; font-size:9.5px; font-family:'IBM Plex Mono'; margin-top:3px; }
+  .face-btn.picked{ border-color:var(--green); color:var(--green); background:var(--green-dim); }
+  .face-btn.picked.sev3{ border-color:var(--red); color:var(--red); background:var(--red-dim); }
+  .onset-row{ margin-top:9px; }
+  .onset-row select{
+    width:100%; background:var(--panel); border:1px solid var(--stroke); color:var(--text-soft);
+    font-family:'IBM Plex Mono'; font-size:11px; padding:6px 8px; border-radius:5px;
+  }
+
+  /* ---------- Risk factors + BMI ---------- */
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:760px){ .two-col{ grid-template-columns:1fr; } }
+  .factor-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px dashed var(--stroke); font-size:12.5px; }
+  .factor-row input{ width:15px; height:15px; accent-color:var(--green); }
+
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:11px; color:var(--text-soft); margin-bottom:5px; }
+  .field input, .field select{
+    width:100%; background:var(--panel-2); border:1px solid var(--stroke); color:var(--text);
+    font-family:'IBM Plex Mono'; font-size:13.5px; padding:9px 10px; border-radius:6px;
+  }
+  .bmi-result{ margin-top:10px; padding:12px 14px; background:var(--panel-2); border:1px solid var(--stroke); border-radius:8px; }
+  .bmi-result .bnum{ font-size:24px; font-weight:700; }
+  .bmi-result .bcat{ font-size:12px; margin-top:2px; }
+  .hr-zones{ margin-top:12px; }
+  .hr-zone-row{ display:flex; justify-content:space-between; font-size:12px; padding:6px 0; border-bottom:1px dashed var(--stroke); color:var(--text-soft); }
+  .hr-zone-row span:last-child{ color:var(--text); font-weight:600; }
+
+  /* ---------- Gauge panel ---------- */
+  .gauge-panel{ text-align:center; }
+  .gauge-num{ font-size:44px; font-weight:700; }
+  .gauge-word{ font-family:'Space Grotesk'; font-size:16px; font-weight:600; margin-top:2px; }
+  .gauge-max{ font-size:34px; margin-top:4px; }
+
+  .emergency-banner{
+    display:none; margin-top:16px; background:var(--red-dim); border:1px solid var(--red); color:var(--red);
+    padding:14px 16px; border-radius:8px; font-size:12.5px;
+  }
+  .emergency-banner.show{ display:block; animation:pulseGlow 1.6s ease-in-out infinite; }
+  @keyframes pulseGlow{ 0%,100%{ box-shadow:0 0 0 rgba(255,92,92,0);} 50%{ box-shadow:0 0 18px rgba(255,92,92,.35);} }
+  .emergency-banner strong{ display:block; font-family:'Space Grotesk'; font-size:14px; margin-bottom:4px; }
+
+  .btn-row{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  .btn{ font-family:'Space Grotesk'; font-weight:600; font-size:13px; padding:10px 18px; border-radius:6px; border:1px solid var(--green); background:var(--green); color:var(--bg); cursor:pointer; }
+  .btn.ghost{ background:transparent; color:var(--text); border-color:var(--stroke); }
+  [data-theme="light"] .btn{ color:#fff; }
+
+  /* ---------- Log ---------- */
+  .log-entry{ display:grid; grid-template-columns:110px 50px 1fr auto; gap:12px; align-items:center; padding:11px 0; border-bottom:1px solid var(--stroke); font-size:12px; }
+  .log-entry:last-child{ border-bottom:none; }
+  .log-time{ color:var(--text-soft); }
+  .log-score{ font-weight:700; }
+  .log-tag{ display:inline-block; background:var(--green-dim); color:var(--green); border-radius:3px; padding:1px 7px; font-size:10.5px; margin:0 4px 4px 0; }
+  .del-btn{ background:none; border:none; color:var(--text-soft); cursor:pointer; font-size:14px; }
+  .log-empty{ color:var(--text-soft); font-size:12.5px; padding:16px 0; }
+  .chart-wrap{ margin-top:18px; }
+  .chart-wrap svg{ width:100%; height:130px; display:block; }
+  .best-badge{ font-size:11px; color:var(--text-soft); margin-top:12px; }
+  .best-badge span{ color:var(--green); font-weight:700; }
+
+  /* ---------- Reference ---------- */
+  .ref-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:640px){ .ref-grid{ grid-template-columns:1fr; } }
+  .ref-col h3{ font-size:13.5px; margin-bottom:8px; }
+  .ref-col ul{ margin:0; padding-left:16px; font-size:12.5px; color:var(--text-soft); }
+  .ref-col li{ margin-bottom:6px; }
+
+  .tip-box{ background:var(--panel-2); border:1px solid var(--stroke); border-radius:8px; padding:14px 16px; margin-top:16px; font-size:12.5px; color:var(--text-soft); }
+  .tip-box strong{ color:var(--green); display:block; margin-bottom:4px; font-family:'Space Grotesk'; font-size:12.5px; }
+
+  .action-steps{ list-style:none; counter-reset:step; padding:0; margin:16px 0 0; }
+  .action-steps li{ counter-increment:step; position:relative; padding-left:32px; margin-bottom:12px; font-size:12.5px; color:var(--text-soft); }
+  .action-steps li::before{ content:counter(step); position:absolute; left:0; top:0; width:21px; height:21px; border-radius:50%;
+    background:var(--green); color:var(--bg); font-size:11px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+
+  footer{ margin-top:30px; color:var(--text-soft); font-size:11px; text-align:center; }
+
+  /* ---------- Splash intro with logo ---------- */
+  #splash{
+    position:fixed; inset:0; z-index:200;
+    background:
+      radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 1px) 0 0/22px 22px,
+      var(--bg);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+    transition:opacity .55s ease, visibility .55s ease;
+  }
+  #splash.hide{ opacity:0; visibility:hidden; pointer-events:none; }
+  /* --- 5-second logo intro: choices hidden until ready --- */
+  .splash-card .sp-tag,
+  .splash-card .sp-sub,
+  .splash-card .choice-row,
+  .splash-card .splash-note{
+    opacity:0; transform:translateY(10px); pointer-events:none;
+    transition:opacity .55s ease, transform .55s ease;
+  }
+  #splash.ready .sp-tag,
+  #splash.ready .sp-sub,
+  #splash.ready .choice-row,
+  #splash.ready .splash-note{
+    opacity:1; transform:none; pointer-events:auto;
+  }
+  .intro-bar{
+    width:230px; height:3px; margin:26px auto 4px; background:var(--stroke);
+    border-radius:3px; overflow:hidden;
+    transition:opacity .4s ease;
+  }
+  .intro-bar i{ display:block; height:100%; width:0; background:var(--green); border-radius:3px;
+    animation:introFill 5s linear forwards; box-shadow:0 0 8px var(--green); }
+  @keyframes introFill{ from{ width:0; } to{ width:100%; } }
+  #splash.ready .intro-bar{ opacity:0; }
+  .intro-skip{ font-size:10px; color:var(--text-soft); letter-spacing:.08em; text-transform:uppercase;
+    margin-top:8px; opacity:.7; transition:opacity .4s ease; }
+  #splash.ready .intro-skip{ opacity:0; height:0; margin:0; overflow:hidden; }
+  .logo-wrap{ animation:logoIn 1.1s cubic-bezier(.2,.9,.3,1.2) both; }
+  @keyframes logoIn{ from{ transform:scale(.55); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  .splash-card h1{ animation:titleIn .9s .45s ease both; }
+  @keyframes titleIn{ from{ transform:translateY(14px); opacity:0; } to{ transform:none; opacity:1; } }
+  .splash-card{ text-align:center; max-width:580px; }
+  .logo-wrap{ position:relative; width:120px; height:120px; margin:0 auto 22px; }
+  .logo-ring{ position:absolute; inset:0; border:2px solid var(--green); border-radius:50%; opacity:.35; animation:ringPulse 1.8s ease-out infinite; }
+  .logo-ring.r2{ animation-delay:.6s; }
+  @keyframes ringPulse{ 0%{ transform:scale(.72); opacity:.55; } 100%{ transform:scale(1.28); opacity:0; } }
+  .logo-svg{ width:120px; height:120px; position:relative; z-index:1; }
+  .logo-svg .lp{ fill:none; stroke:var(--green); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:300; stroke-dashoffset:300; animation:draw 2.6s linear infinite; }
+  .logo-svg .lh{ fill:var(--green); opacity:.9; }
+  .splash-card .sp-tag{ display:inline-block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); border:1px solid var(--green); border-radius:20px; padding:4px 12px; margin-bottom:16px; }
+  .splash-card h1{ font-size:32px; letter-spacing:.01em; }
+  .splash-card .sp-sub{ font-size:13px; color:var(--text-soft); margin-top:10px; line-height:1.6; }
+  .choice-row{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:28px; }
+  .choice-btn{
+    min-width:235px; max-width:270px; text-align:left; background:var(--panel); border:1px solid var(--stroke);
+    color:var(--text); border-radius:10px; padding:16px 18px; cursor:pointer; font-family:'IBM Plex Mono';
+    transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+  }
+  .choice-btn:hover{ border-color:var(--green); transform:translateY(-2px); box-shadow:0 8px 22px rgba(0,0,0,.28); }
+  .choice-btn.primary{ background:var(--green-dim); border-color:var(--green); }
+  .choice-btn .cb-title{ font-family:'Space Grotesk'; font-weight:700; font-size:15px; }
+  .choice-btn .cb-badge{ display:inline-block; font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--stroke); color:var(--text-soft); border-radius:3px; padding:1px 6px; margin-left:6px; vertical-align:2px; font-family:'IBM Plex Mono'; font-weight:400; }
+  .choice-btn .cb-sub{ font-size:11px; color:var(--text-soft); margin-top:7px; line-height:1.5; }
+  .splash-note{ font-size:10.5px; color:var(--text-soft); margin-top:26px; line-height:1.5; }
+
+  /* ---------- Matcher (second UI) ---------- */
+  .problem-input{
+    width:100%; min-height:150px; resize:vertical; background:var(--panel-2); border:1px solid var(--stroke);
+    color:var(--text); font-family:'IBM Plex Mono'; font-size:13.5px; line-height:1.6; padding:14px; border-radius:8px;
+  }
+  .problem-input:focus{ outline:none; border-color:var(--green); }
+  .sample-chips{ display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 16px; }
+  .sample-chip{ background:var(--panel-2); border:1px dashed var(--stroke); color:var(--text-soft); font-family:'IBM Plex Mono'; font-size:11px; padding:6px 12px; border-radius:20px; cursor:pointer; }
+  .sample-chip:hover{ border-color:var(--green); color:var(--green); }
+  .result-grid{ display:grid; grid-template-columns:250px 1fr; gap:22px; }
+  @media (max-width:760px){ .result-grid{ grid-template-columns:1fr; } }
+  .pct-big{ font-size:58px; font-weight:700; line-height:1; font-family:'Space Grotesk'; }
+  .pct-label{ font-size:11.5px; color:var(--text-soft); margin-top:8px; line-height:1.45; }
+  .pct-band{ font-family:'Space Grotesk'; font-weight:700; font-size:16px; margin-top:6px; }
+  .pct-bar{ height:8px; background:var(--panel-2); border:1px solid var(--stroke); border-radius:6px; overflow:hidden; margin-top:14px; }
+  .pct-bar i{ display:block; height:100%; width:0; background:var(--green); transition:width .9s ease; border-radius:6px; }
+  .mini-h{ font-family:'Space Grotesk'; font-size:12.5px; font-weight:600; margin:16px 0 8px; }
+  .mini-h:first-child{ margin-top:0; }
+  .kw-chips{ display:flex; gap:6px; flex-wrap:wrap; }
+  .kw-chip{ background:var(--green-dim); color:var(--green); border:1px solid var(--green); font-size:10.5px; padding:3px 9px; border-radius:14px; font-family:'IBM Plex Mono'; }
+  .kw-chip.riskf{ background:var(--amber-dim); color:var(--amber); border-color:var(--amber); }
+  .case-card{ display:flex; justify-content:space-between; gap:10px; align-items:center; background:var(--panel-2); border:1px solid var(--stroke); border-radius:7px; padding:9px 12px; margin-bottom:7px; font-size:12px; }
+  .case-card .ctitle{ min-width:0; }
+  .case-card .cid{ color:var(--text-soft); font-size:10.5px; display:block; margin-top:2px; }
+  .case-card .csim{ font-weight:700; color:var(--green); white-space:nowrap; }
+  .match-chart{ margin-top:20px; border-top:1px solid var(--stroke); padding-top:14px; }
+  .match-chart svg{ width:100%; height:auto; display:block; }
+  .chart-legend{ display:flex; gap:16px; font-size:11px; color:var(--text-soft); margin-top:8px; flex-wrap:wrap; }
+  .chart-legend b{ color:var(--text); font-weight:600; }
+  .lg-dot{ display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; vertical-align:-1px; }
+  .stage-note{ font-size:11px; color:var(--text-soft); margin-top:4px; line-height:1.5; }
+  .empty-note{ font-size:12px; color:var(--text-soft); }
+  .ds-meta{ font-size:11px; color:var(--text-soft); margin-top:10px; }
+  .ds-meta strong{ color:var(--green); }
+
+  /* ---------- Live sensor agent (third UI) ---------- */
+  .conn-bar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .conn-bar .search-input{ flex:1; min-width:190px; }
+  .conn-status{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-soft); }
+  .conn-dot{ width:10px; height:10px; border-radius:50%; background:var(--text-soft); flex-shrink:0; }
+  .conn-dot.ok{ background:var(--green); box-shadow:0 0 8px var(--green); animation:pulseGlow 1.6s ease-in-out infinite; }
+  .conn-dot.err{ background:var(--red); }
+  .conn-dot.busy{ background:var(--amber); animation:beat 1s ease-in-out infinite; }
+  .live-vitals{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  @media (max-width:760px){ .live-vitals{ grid-template-columns:1fr 1fr; } }
+  .live-grid{ display:grid; grid-template-columns:250px 1fr; gap:22px; }
+  @media (max-width:760px){ .live-grid{ grid-template-columns:1fr; } }
+  .wave-box{ background:var(--panel-2); border:1px solid var(--stroke); border-radius:8px; padding:10px 12px; }
+  .wave-box svg{ width:100%; height:80px; display:block; }
+  .live-chart{ margin-top:18px; border-top:1px solid var(--stroke); padding-top:14px; }
+  .live-chart svg{ width:100%; height:auto; display:block; }
+  .src-badge{ display:inline-block; font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+    border:1px solid var(--stroke); color:var(--text-soft); border-radius:3px; padding:2px 7px; margin-left:8px; vertical-align:2px; font-family:'IBM Plex Mono'; }
+  .src-badge.sim{ border-color:var(--amber); color:var(--amber); }
+  .src-badge.hw{ border-color:var(--green); color:var(--green); }
+  .howto{ font-size:12.5px; color:var(--text-soft); line-height:1.7; background:var(--panel-2);
+    border:1px solid var(--stroke); border-radius:8px; padding:14px 16px; margin-top:14px; }
+  .howto code{ background:var(--panel); border:1px solid var(--stroke); border-radius:4px; padding:1px 6px; font-size:11.5px; color:var(--green); }
+  .howto strong{ color:var(--text); }
+</style>
+</head>
+<body data-theme="dark">
+
+<!-- ================= SPLASH / LOGO INTRO (shows ~5 seconds) ================= -->
+<div id="splash">
+  <div class="splash-card">
+    <div class="logo-wrap">
+      <div class="logo-ring"></div>
+      <div class="logo-ring r2"></div>
+      <svg class="logo-svg" viewBox="0 0 120 120" aria-label="Cardiac Monitor logo">
+        <circle cx="60" cy="60" r="52" fill="var(--panel)" stroke="var(--stroke)" stroke-width="2"/>
+        <path class="lh" d="M60 90s-26-15.4-26-31.4C34 51.6 37.9 44 45 44c4.5 0 7.7 2.6 10 6.2C57.3 46.6 60.5 44 65 44c7.1 0 11 7.6 11 14.6C76 74.6 60 90 60 90z"/>
+        <path class="lp" d="M24 64h16l5-12 8 24 6-15 5 8h32"/>
+      </svg>
+    </div>
+    <div class="sp-tag">Runs fully on localhost · educational</div>
+    <h1>Cardiac Monitor</h1>
+    <div class="sp-sub">The full dashboard runs from <b>python agent.py</b> at <b>http://localhost:8777</b> — all three UIs in one page. The Python agent only drives the last one (Live sensor).</div>
+    <div class="intro-bar" aria-hidden="true"><i></i></div>
+    <div class="intro-skip">Logo intro · tap to skip</div>
+    <div class="choice-row">
+      <button class="choice-btn primary" id="goDash">
+        <div class="cb-title">Simple dashboard <span class="cb-badge">yours</span></div>
+        <div class="cb-sub">Your original UI — tap symptoms on the body map, see the heart-attack risk % gauge live.</div>
+      </button>
+      <button class="choice-btn" id="goMatcher">
+        <div class="cb-title">Problem matcher <span class="cb-badge">new</span></div>
+        <div class="cb-sub">Write your problem in plain words — matched against a built-in heart-attack dataset and tracked as a line chart.</div>
+      </button>
+      <button class="choice-btn" id="goLive">
+        <div class="cb-title">Live sensor agent <span class="cb-badge">python</span></div>
+        <div class="cb-sub">BP-machine style — strap on the arm, wire into the laptop, run <b>agent.py</b>, watch the heart-attack % line move in real time.</div>
+      </button>
+    </div>
+    <div class="splash-note">Educational simulation · not a medical device · if real symptoms are happening now, call emergency services immediately</div>
+  </div>
+</div>
+
+<!-- ================= UI 1 — YOUR ORIGINAL DASHBOARD ================= -->
+<div class="frame" id="dashFrame">
+
+  <div class="chrome">
+    <div class="brand">
+      <svg class="heart-icon" viewBox="0 0 32 29" id="heartIcon"><g class="beat"><path d="M16 28.5S1 19.4 1 9.7C1 4.9 4.8 1 9.5 1c2.9 0 5.5 1.5 7 3.8C18 2.5 20.6 1 23.5 1 28.2 1 32 4.9 32 9.7c0 9.7-16 18.8-16 18.8z" transform="translate(-1,-1)"/></g></svg>
+      <div>
+        <h1>Cardiac Monitor</h1>
+        <div class="sub">Symptom & risk dashboard — school project build</div>
+      </div>
+    </div>
+    <div class="chrome-controls">
+      <button class="icon-btn" id="openMatcher" title="Open the new Problem Matcher UI">Problem matcher →</button>
+      <button class="icon-btn" id="openLive" title="Open the Python live sensor UI">Live sensor →</button>
+      <button class="icon-btn" id="soundToggle">Sound: off</button>
+      <button class="icon-btn" id="themeToggle">Light mode</button>
+    </div>
+  </div>
+
+  <div class="disclaimer-strip"><strong>Educational simulation, not a medical device.</strong> If real symptoms are happening now, call emergency services — don't wait on this page.</div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="monitor">Monitor</button>
+    <button class="tab-btn" data-tab="factors">Risk factors</button>
+    <button class="tab-btn" data-tab="log">Log & trends</button>
+    <button class="tab-btn" data-tab="reference">Reference</button>
+  </div>
+
+  <!-- MONITOR TAB -->
+  <div class="tab-panel active" id="tab-monitor">
+    <div class="monitor-row">
+      <div class="panel">
+        <h2>Live vitals</h2>
+        <div class="vitals">
+          <div class="vital-cell">
+            <div class="vlabel">RISK SCORE</div>
+            <div class="vnum" id="vScore">0</div>
+            <div class="vunit">/ 100</div>
+            <div class="status-pill" id="vStatus">no data</div>
+          </div>
+          <div class="vital-cell">
+            <div class="vlabel">SIMULATED PULSE</div>
+            <div class="vnum" id="vPulse">72</div>
+            <div class="vunit">bpm (illustrative)</div>
+          </div>
+        </div>
+        <div class="ecg-strip">
+          <svg viewBox="0 0 1000 64" preserveAspectRatio="none">
+            <path class="ecg-line" id="ecgPath" d="M0,32 L120,32 L140,32 L155,8 L170,56 L185,32 L230,32 L245,18 L260,32 L400,32 L420,32 L435,8 L450,56 L465,32 L510,32 L525,18 L540,32 L680,32 L700,32 L715,8 L730,56 L745,32 L790,32 L805,18 L820,32 L1000,32"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="panel timer-box" id="timerBox">
+        <h2 style="text-align:left;">Symptom duration</h2>
+        <div class="tnum mono" id="timerNum">00:00</div>
+        <div class="tlabel">since first symptom checked</div>
+        <div class="tcallout" id="timerCallout" style="display:none;">Past 5 minutes — treat as an emergency</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>What are you noticing?</h2>
+      <div class="hint">Tap where it hurts, pick a pattern to try, search the list, or check symptoms directly below.</div>
+
+      <div class="input-row">
+        <div class="bodymap-box">
+          <div class="mini-label">Tap where you feel pain</div>
+          <svg viewBox="0 0 140 260" class="bodymap" id="bodyMap">
+            <path d="M70 8a16 16 0 1 1 0 .01z" fill="var(--panel-2)" stroke="var(--stroke)"/>
+            <path data-region="jaw" d="M56 26h28v14H56z" class="region" />
+            <path data-region="neck" d="M60 40h20v12H60z" class="region" />
+            <path data-region="chest" class="region" d="M40 52h60v52a30 30 0 0 1-60 0z" />
+            <path data-region="leftarm" class="region" d="M40 55 L18 60 L14 130 L26 132 L38 90z" />
+            <path data-region="rightarm" class="region" d="M100 55 L122 60 L126 130 L114 132 L102 90z" />
+            <path data-region="back" class="region" d="M40 108h60v34H40z" opacity="0" />
+            <path data-region="stomach" class="region" d="M46 104h48v40a24 24 0 0 1-48 0z" />
+            <path d="M40 176h60l-6 70H46z" fill="var(--panel-2)" stroke="var(--stroke)"/>
+          </svg>
+          <div class="mini-label" id="mapSelected">No location selected</div>
+        </div>
+
+        <div class="input-right">
+          <div class="mini-label">Try a pattern</div>
+          <div class="preset-row">
+            <button class="preset-btn" data-preset="classic">Classic pattern</button>
+            <button class="preset-btn" data-preset="silent">Atypical / silent</button>
+            <button class="preset-btn" data-preset="anxiety">Anxiety mimic</button>
+          </div>
+
+          <div class="mini-label" style="margin-top:14px;">Search symptoms</div>
+          <input type="text" id="symptomSearch" class="search-input" placeholder="Type to filter the list below…">
+
+          <div class="mini-label" style="margin-top:14px;">Add something not listed</div>
+          <div class="add-row">
+            <input type="text" id="customSymptomIn" class="search-input" placeholder="e.g. tingling in fingers">
+            <button class="btn ghost small" id="addCustomBtn">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="symptom-grid" id="symptomGrid" style="margin-top:18px;"></div>
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <div class="monitor-row" style="margin-bottom:0;">
+        <div class="gauge-panel">
+          <h2 style="text-align:left;">Assessment</h2>
+          <svg viewBox="0 0 200 200" width="200">
+            <circle cx="100" cy="100" r="82" fill="none" stroke="var(--stroke)" stroke-width="14"/>
+            <circle cx="100" cy="100" r="82" fill="none" id="gaugeCircle" stroke="var(--green)" stroke-width="14" stroke-linecap="round"
+              stroke-dasharray="515" stroke-dashoffset="515" transform="rotate(-90 100 100)"/>
+            <text x="100" y="108" text-anchor="middle" font-family="IBM Plex Mono" font-size="36" font-weight="700" fill="var(--text)" id="gaugeText">0</text>
+          </svg>
+          <div class="gauge-word" id="gaugeWord">Not assessed</div>
+          <div class="btn-row" style="justify-content:center;">
+            <button class="btn" id="logBtn">Log this reading</button>
+            <button class="btn ghost" id="resetBtn">Clear</button>
+          </div>
+        </div>
+        <div>
+          <h2>Why this reading</h2>
+          <ul style="margin:0;padding-left:16px;font-size:12.5px;color:var(--text-soft);">
+            <li>Chest pressure and its severity weigh the most — it's the strongest single signal.</li>
+            <li>Radiating pain, breathlessness, sweating, nausea and dizziness each add smaller weighted amounts.</li>
+            <li>Background risk factors (next tab) add a flat amount, since they shift baseline risk rather than signal an event happening now.</li>
+            <li>Score bands: 0–24 low · 25–49 moderate · 50–74 high · 75–100 emergency.</li>
+          </ul>
+          <div class="emergency-banner" id="emergencyBanner">
+            <strong>This matches emergency warning signs</strong>
+            Chest pressure with radiating pain, breathlessness, sweating or nausea is treated as a possible heart attack until proven otherwise. Call emergency services now.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FACTORS TAB -->
+  <div class="tab-panel" id="tab-factors">
+    <div class="two-col">
+      <div class="panel">
+        <h2>Background risk factors</h2>
+        <div class="hint">These raise baseline risk without signalling an event in progress.</div>
+        <div id="factorList"></div>
+      </div>
+      <div class="panel">
+        <h2>Quick calculators</h2>
+        <div class="hint">Optional — used only to estimate BMI and heart-rate training zones.</div>
+        <div class="two-col" style="gap:10px;">
+          <div class="field"><label>Height (cm)</label><input type="number" id="heightIn" placeholder="170"></div>
+          <div class="field"><label>Weight (kg)</label><input type="number" id="weightIn" placeholder="65"></div>
+        </div>
+        <div class="field"><label>Age</label><input type="number" id="ageIn" placeholder="30"></div>
+        <button class="btn ghost" id="calcBtn" style="width:100%;">Calculate</button>
+        <div class="bmi-result" id="bmiResult" style="display:none;">
+          <div class="bnum" id="bmiNum">–</div>
+          <div class="bcat" id="bmiCat"></div>
+          <div class="hr-zones" id="hrZones"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG TAB -->
+  <div class="tab-panel" id="tab-log">
+    <div class="panel">
+      <h2>Symptom log</h2>
+      <div class="hint">Every reading logged this session — newest first.</div>
+      <div id="logList"><div class="log-empty">No readings logged yet.</div></div>
+      <div class="chart-wrap" id="chartWrap" style="display:none;"><svg viewBox="0 0 600 130" preserveAspectRatio="none" id="trendSvg"></svg></div>
+      <div class="best-badge" id="bestBadge" style="display:none;"></div>
+      <div class="btn-row">
+        <button class="btn ghost" id="exportBtn">Export log (.txt)</button>
+        <button class="btn ghost" id="clearLogBtn">Clear log</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REFERENCE TAB -->
+  <div class="tab-panel" id="tab-reference">
+    <div class="panel">
+      <h2>Know the signs</h2>
+      <div class="ref-grid">
+        <div class="ref-col">
+          <h3>Common in most people</h3>
+          <ul>
+            <li>Pressure, squeezing or fullness in the center of the chest, lasting minutes or coming and going.</li>
+            <li>Pain spreading to arms, back, neck, jaw or stomach.</li>
+            <li>Shortness of breath, with or without chest discomfort.</li>
+            <li>Cold sweat, nausea, or lightheadedness.</li>
+          </ul>
+        </div>
+        <div class="ref-col">
+          <h3>Often under-recognized in women</h3>
+          <ul>
+            <li>Unusual fatigue, sometimes days beforehand.</li>
+            <li>Jaw, neck, back or upper-abdomen pain without obvious chest pain.</li>
+            <li>Breathlessness, nausea or vomiting as the leading symptom.</li>
+            <li>Lightheadedness or cold sweat with no clear chest pressure.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="tip-box" id="tipBox"><strong>Did you know</strong>Loading…</div>
+      <h2 style="margin-top:22px;">If this were real</h2>
+      <ol class="action-steps">
+        <li>Call your local emergency number right away — don't drive yourself.</li>
+        <li>Sit or lie down and loosen tight clothing while you wait.</li>
+        <li>Chew an aspirin only if emergency services advise it and you're not allergic.</li>
+        <li>If the person stops responding and isn't breathing normally, start CPR and use an AED if available.</li>
+        <li>Note the time symptoms started — responders will ask, and it affects treatment.</li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>Built as a school project reference tool. Scoring is a simplified teaching model, not a clinical diagnostic system.</footer>
+</div>
+
+<!-- ================= UI 2 — PROBLEM MATCHER (new) ================= -->
+<div class="frame" id="matcherFrame" style="display:none;">
+
+  <div class="chrome">
+    <div class="brand">
+      <svg class="heart-icon" viewBox="0 0 32 29"><g class="beat"><path d="M16 28.5S1 19.4 1 9.7C1 4.9 4.8 1 9.5 1c2.9 0 5.5 1.5 7 3.8C18 2.5 20.6 1 23.5 1 28.2 1 32 4.9 32 9.7c0 9.7-16 18.8-16 18.8z" transform="translate(-1,-1)"/></g></svg>
+      <div>
+        <h1>Problem Matcher</h1>
+        <div class="sub">Describe your problem in words — matched against the built-in dataset</div>
+      </div>
+    </div>
+    <div class="chrome-controls">
+      <button class="icon-btn" id="backToDash">← Dashboard</button>
+      <button class="icon-btn" id="openLiveFromMatcher" title="Open the Python live sensor UI">Live sensor →</button>
+      <button class="icon-btn" id="matcherThemeToggle">Light mode</button>
+    </div>
+  </div>
+
+  <div class="disclaimer-strip"><strong>Educational simulation, not a medical device.</strong> This matcher compares your text with a built-in sample dataset for a teaching demo — it does not diagnose anything. If real symptoms are happening now, call emergency services — don't wait on this page.</div>
+
+  <div class="panel">
+    <h2>1 · Write your problem</h2>
+    <div class="hint">Describe what you're feeling in your own words — where it hurts, how it feels, how long it's been going on, anything else you noticed.</div>
+    <textarea id="problemInput" class="problem-input" rows="6" placeholder="e.g. Since about 20 minutes I have a heavy squeezing pain in the middle of my chest that is spreading down my left arm. I am cold sweating and feeling short of breath…"></textarea>
+    <div class="sample-chips">
+      <button class="sample-chip" data-sample="classic">Try: classic case</button>
+      <button class="sample-chip" data-sample="atypical">Try: atypical / silent</button>
+      <button class="sample-chip" data-sample="mild">Try: mild / unclear</button>
+      <button class="sample-chip" data-sample="notcardiac">Try: probably not cardiac</button>
+    </div>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn" id="runMatchBtn">Match against dataset</button>
+      <button class="btn ghost" id="clearMatchBtn">Clear</button>
+    </div>
+    <div class="ds-meta" id="dsMeta"></div>
+  </div>
+
+  <div class="panel" id="matchResultPanel" style="display:none; margin-top:16px;">
+    <h2>2 · Match result</h2>
+    <div class="result-grid">
+      <div>
+        <div class="mini-h" style="margin-top:4px;">Heart-attack signal</div>
+        <div class="pct-big" id="mPct">0%</div>
+        <div class="pct-band" id="mBand">—</div>
+        <div class="pct-label">Overall match score of your description against the dataset (educational estimate only).</div>
+        <div class="pct-bar"><i id="mBar"></i></div>
+        <div class="emergency-banner" id="mEmergency" style="margin-top:14px;">
+          <strong>This matches emergency warning signs</strong>
+          Your description overlaps strongly with emergency-pattern cases in the dataset. Call emergency services now.
+        </div>
+      </div>
+      <div>
+        <div class="mini-h" style="margin-top:4px;">What was found in your text</div>
+        <div class="kw-chips" id="mKeywords"><span class="empty-note">—</span></div>
+        <div class="mini-h">Closest cases in the dataset</div>
+        <div id="mCases"><span class="empty-note">—</span></div>
+        <div class="mini-h">Why this reading</div>
+        <ul style="margin:0;padding-left:16px;font-size:12px;color:var(--text-soft);line-height:1.55;" id="mWhy"></ul>
+      </div>
+    </div>
+
+    <div class="match-chart">
+      <div class="mini-h" style="margin-top:0;">Risk tracking — line chart</div>
+      <div class="stage-note">Solid green line = how the score built up stage-by-stage during this match. Dashed amber line = every run you've done this session, tracked over time.</div>
+      <svg viewBox="0 0 600 180" id="matchSvg"></svg>
+      <div class="chart-legend">
+        <span><span class="lg-dot" style="background:var(--green)"></span><b>This run (stage build-up)</b></span>
+        <span><span class="lg-dot" style="background:var(--amber)"></span><b>Session history</b></span>
+        <span><span class="lg-dot" style="background:var(--red)"></span><b>Emergency line (75%)</b></span>
+      </div>
+    </div>
+  </div>
+
+  <footer>Problem Matcher — part of the Cardiac Monitor school project. The dataset is a small built-in sample for demonstration, not real patient records.</footer>
+</div>
+
+<!-- ================= UI 3 — LIVE SENSOR AGENT (python) ================= -->
+<div class="frame" id="liveFrame" style="display:none;">
+
+  <div class="chrome">
+    <div class="brand">
+      <svg class="heart-icon" viewBox="0 0 32 29"><g class="beat"><path d="M16 28.5S1 19.4 1 9.7C1 4.9 4.8 1 9.5 1c2.9 0 5.5 1.5 7 3.8C18 2.5 20.6 1 23.5 1 28.2 1 32 4.9 32 9.7c0 9.7-16 18.8-16 18.8z" transform="translate(-1,-1)"/></g></svg>
+      <div>
+        <h1>Live Sensor Agent <span class="src-badge" id="srcBadge">offline</span></h1>
+        <div class="sub">Strap → wire → laptop → <b>agent.py</b> → live heart-attack % line</div>
+      </div>
+    </div>
+    <div class="chrome-controls">
+      <button class="icon-btn" id="backFromLive">← Menu</button>
+      <button class="icon-btn" id="liveThemeToggle">Light mode</button>
+    </div>
+  </div>
+
+  <div class="disclaimer-strip"><strong>Educational simulation, not a medical device.</strong> The Python agent estimates a teaching score from heart rate, rhythm, HRV, SpO₂ and signal quality — a strap reading is <em>not</em> a diagnosis of heart attack. If real symptoms are happening now, call emergency services — don't wait on this page.</div>
+
+  <div class="panel">
+    <h2>1 · Connect the strap & agent</h2>
+    <div class="howto">
+      <strong>BP-machine style flow:</strong><br>
+      ① Tie the sensor strap on your arm / clip the pulse sensor on your finger.<br>
+      ② Connect the wire (USB serial — Arduino + AD8232 ECG or a pulse sensor; <code>strap_node.ino</code> is included).<br>
+      ③ Start the agent on your laptop: <code>python agent.py</code> &nbsp;(no hardware yet? <code>python agent.py --sim</code>)<br>
+      ④ This page connects automatically when the agent serves it — or paste the agent URL below and press Connect.<br>
+      ⑤ The heart-attack % line graph updates live (every 250&nbsp;ms).
+    </div>
+    <div class="conn-bar" style="margin-top:14px;">
+      <div class="conn-status"><span class="conn-dot" id="connDot"></span><span id="connText">Not connected</span></div>
+      <input type="text" id="agentUrl" class="search-input" placeholder="http://localhost:8777" value="">
+      <button class="btn" id="connectBtn">Connect</button>
+      <button class="btn ghost" id="disconnectBtn">Disconnect</button>
+    </div>
+    <div class="ds-meta" id="agentMeta">Agent not connected — run <strong>python agent.py</strong> and connect, or open the page through the agent for auto-connect.</div>
+  </div>
+
+  <div class="panel" style="margin-top:16px;">
+    <h2>2 · Live reading</h2>
+    <div class="live-vitals">
+      <div class="vital-cell">
+        <div class="vlabel">HEART RATE</div>
+        <div class="vnum" id="lvHr">—</div>
+        <div class="vunit">bpm</div>
+      </div>
+      <div class="vital-cell">
+        <div class="vlabel">SpO₂</div>
+        <div class="vnum" id="lvSpo2">—</div>
+        <div class="vunit">%</div>
+      </div>
+      <div class="vital-cell">
+        <div class="vlabel">HRV (RMSSD)</div>
+        <div class="vnum" id="lvHrv">—</div>
+        <div class="vunit">ms</div>
+      </div>
+      <div class="vital-cell">
+        <div class="vlabel">SIGNAL QUALITY</div>
+        <div class="vnum" id="lvQual">—</div>
+        <div class="vunit">0 – 1</div>
+      </div>
+    </div>
+
+    <div class="live-grid" style="margin-top:18px;">
+      <div>
+        <div class="mini-h" style="margin-top:0;">Heart-attack signal (live)</div>
+        <div class="pct-big" id="lvPct">—</div>
+        <div class="pct-band" id="lvBand">Waiting for agent…</div>
+        <div class="pct-bar" style="margin-top:12px;"><i id="lvBar"></i></div>
+        <div class="emergency-banner" id="lvEmergency" style="margin-top:14px;">
+          <strong>Emergency band reached</strong>
+          Live score is in the emergency range (≥75%). Treat as a warning-sign drill — in real life call emergency services now.
+        </div>
+        <div class="mini-h">Why (live)</div>
+        <ul style="margin:0;padding-left:16px;font-size:12px;color:var(--text-soft);line-height:1.55;" id="lvWhy">
+          <li>Connect the agent to start receiving readings.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="mini-h" style="margin-top:0;">Rhythm strip <span class="src-badge" id="waveBadge">no signal</span></div>
+        <div class="wave-box">
+          <svg viewBox="0 0 300 80" preserveAspectRatio="none" id="waveSvg">
+            <polyline id="waveLine" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linejoin="round" points=""/>
+          </svg>
+        </div>
+        <div class="stage-note">Raw strap waveform as it arrives (simulator feeds a synthetic ECG when no hardware is attached).</div>
+      </div>
+    </div>
+
+    <div class="live-chart">
+      <div class="mini-h" style="margin-top:0;">Heart-attack % tracking — live line chart</div>
+      <div class="stage-note">Green line = live score from the agent, one point every 250&nbsp;ms. Red dashed line = emergency threshold (75%).</div>
+      <svg viewBox="0 0 600 180" id="liveSvg"></svg>
+      <div class="chart-legend">
+        <span><span class="lg-dot" style="background:var(--green)"></span><b>Live heart-attack %</b></span>
+        <span><span class="lg-dot" style="background:var(--red)"></span><b>Emergency line (75%)</b></span>
+        <span><span class="lg-dot" style="background:var(--amber)"></span><b>High line (50%)</b></span>
+      </div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn ghost" id="clearLiveChart">Clear chart</button>
+        <button class="btn ghost" id="exportLiveBtn">Export live log (.csv)</button>
+      </div>
+      <div class="best-badge" id="liveStats" style="display:none;"></div>
+    </div>
+  </div>
+
+  <footer>Live Sensor Agent — python backend for the Cardiac Monitor school project. Strap firmware: <code>strap_node.ino</code> · agent: <code>agent.py</code>.</footer>
+</div>
+
+<script>
+(function(){
+
+  /* ---------------- Tabs ---------------- */
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  /* ---------------- Theme ---------------- */
+  const themeBtn = document.getElementById('themeToggle');
+  themeBtn.addEventListener('click', ()=>{
+    const cur = document.body.getAttribute('data-theme');
+    const next = cur==='dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', next);
+    themeBtn.textContent = next==='dark' ? 'Light mode' : 'Dark mode';
+  });
+
+  /* ---------------- Sound ---------------- */
+  let soundOn = false;
+  const soundBtn = document.getElementById('soundToggle');
+  soundBtn.addEventListener('click', ()=>{
+    soundOn = !soundOn;
+    soundBtn.textContent = 'Sound: ' + (soundOn?'on':'off');
+    soundBtn.classList.toggle('on', soundOn);
+  });
+  function beep(freq){
+    try{
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.type='sine'; osc.frequency.value=freq;
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime+0.12);
+    }catch(e){}
+  }
+
+  /* ---------------- Data ---------------- */
+  const SYMPTOMS = [
+    { id:'chest', name:'Chest pressure or pain', desc:'Squeezing or fullness, center/left chest', weight:26, region:'chest' },
+    { id:'leftarm', name:'Left arm pain', desc:'Aching or heaviness down the left arm', weight:14, region:'leftarm' },
+    { id:'rightarm', name:'Right arm pain', desc:'Less typical, still reportable', weight:9, region:'rightarm' },
+    { id:'jaw', name:'Jaw pain', desc:'Aching along the jawline', weight:10, region:'jaw' },
+    { id:'neck', name:'Neck pain', desc:'Tightness or ache in the neck', weight:8, region:'neck' },
+    { id:'back', name:'Upper back pain', desc:'Between the shoulder blades', weight:9, region:'back' },
+    { id:'stomach', name:'Upper stomach pain', desc:'Can feel like heartburn', weight:8, region:'stomach' },
+    { id:'breath', name:'Shortness of breath', desc:'With or without chest discomfort', weight:15 },
+    { id:'sweat', name:'Cold sweat', desc:'No obvious cause', weight:10 },
+    { id:'nausea', name:'Nausea or vomiting', desc:'Especially with the above', weight:8 },
+    { id:'dizzy', name:'Lightheadedness', desc:'Feeling faint or unsteady', weight:8 },
+    { id:'fatigue', name:'Sudden unusual fatigue', desc:'Out of proportion to activity', weight:6 },
+    { id:'palp', name:'Palpitations', desc:'Racing, pounding, irregular beat', weight:5 },
+  ];
+  const REGION_TO_SYMPTOM = { chest:'chest', leftarm:'leftarm', rightarm:'rightarm', jaw:'jaw', neck:'neck', back:'back', stomach:'stomach' };
+  const ONSET_OPTIONS = [
+    { v:'now', label:'Started just now', mult:1.0 },
+    { v:'lt5', label:'Going on <5 min', mult:1.05 },
+    { v:'5to30', label:'Going on 5–30 min', mult:1.12 },
+    { v:'gt30', label:'Going on 30+ min', mult:1.2 },
+  ];
+  const PRESETS = {
+    classic:  ['chest','leftarm','breath','sweat'],
+    silent:   ['fatigue','jaw','nausea','dizzy'],
+    anxiety:  ['palp','dizzy','breath'],
+  };
+  const FACTORS = [
+    { id:'age', name:'Age over 45 (male) / 55 (female)', weight:5 },
+    { id:'smoke', name:'Current or recent smoker', weight:5 },
+    { id:'diabetes', name:'Diabetes', weight:5 },
+    { id:'bp', name:'High blood pressure', weight:5 },
+    { id:'chol', name:'High cholesterol', weight:4 },
+    { id:'family', name:'Family history of heart disease', weight:4 },
+    { id:'weight', name:'Sedentary lifestyle or obesity', weight:3 },
+  ];
+  const TIPS = [
+    "Heart attack symptoms can build gradually over hours, not always strike instantly.",
+    "Roughly 1 in 5 heart attacks is 'silent' — mistaken for indigestion or fatigue.",
+    "Chewing aspirin (not swallowing whole) can help it act faster, if advised by responders.",
+    "CPR performed by a bystander can double or triple survival chances.",
+    "Women are more likely than men to have no chest pain at all during a heart attack.",
+  ];
+
+  const state = { symptoms:{}, factors:{}, log:[], timerStart:null };
+
+  /* ---------------- Build symptom cards ---------------- */
+  const grid = document.getElementById('symptomGrid');
+  const cardIndex = {}; // id -> {card, cb}
+
+  function buildCard(s, isCustom){
+    const card = document.createElement('div');
+    card.className = 'symptom-card' + (isCustom ? ' custom' : '');
+    card.dataset.name = s.name.toLowerCase();
+    const onsetOptions = ONSET_OPTIONS.map(o=>`<option value="${o.v}">${o.label}</option>`).join('');
+    card.innerHTML = `
+      <label class="symptom-top">
+        <input type="checkbox" data-id="${s.id}">
+        <div><div class="symptom-name">${s.name}</div><div class="symptom-desc">${s.desc||''}</div></div>
+      </label>
+      <div class="card-extra">
+        <div class="severity-row">
+          <button type="button" class="face-btn" data-sev="1">🙂<span class="flabel">mild</span></button>
+          <button type="button" class="face-btn" data-sev="2">😣<span class="flabel">moderate</span></button>
+          <button type="button" class="face-btn" data-sev="3">😖<span class="flabel">severe</span></button>
+        </div>
+        <div class="onset-row"><select>${onsetOptions}</select></div>
+      </div>`;
+    grid.appendChild(card);
+
+    const cb = card.querySelector('input[type=checkbox]');
+    const faceBtns = card.querySelectorAll('.face-btn');
+    const onsetSel = card.querySelector('.onset-row select');
+    cardIndex[s.id] = { card, cb };
+
+    function setSeverity(sev){
+      faceBtns.forEach(b=>{
+        const on = Number(b.dataset.sev)===sev;
+        b.classList.toggle('picked', on);
+        b.classList.toggle('sev3', on && sev===3);
+      });
+      card.classList.toggle('severe', sev===3);
+      if(state.symptoms[s.id]) state.symptoms[s.id].sev = sev;
+      recalc();
+    }
+
+    cb.addEventListener('change', ()=>{
+      card.classList.toggle('active', cb.checked);
+      if(cb.checked){
+        state.symptoms[s.id] = { weight:s.weight, sev:2, onset:'now' };
+        setSeverity(2);
+        if(s.region){ const el=document.querySelector(`#bodyMap .region[data-region="${s.region}"]`); if(el) el.classList.add('picked'); updateMapLabel(); }
+        if(!state.timerStart) startTimer();
+      } else {
+        delete state.symptoms[s.id];
+        card.classList.remove('severe');
+        if(s.region) unmarkRegion(s.region);
+        if(Object.keys(state.symptoms).length===0) stopTimer();
+      }
+      recalc();
+    });
+    faceBtns.forEach(b=> b.addEventListener('click', ()=> setSeverity(Number(b.dataset.sev))));
+    onsetSel.addEventListener('change', ()=>{
+      if(state.symptoms[s.id]) state.symptoms[s.id].onset = onsetSel.value;
+      recalc();
+    });
+  }
+
+  SYMPTOMS.forEach(s=> buildCard(s, false));
+
+  /* ---------------- Custom symptom entry ---------------- */
+  let customCount = 0;
+  document.getElementById('addCustomBtn').addEventListener('click', addCustomSymptom);
+  document.getElementById('customSymptomIn').addEventListener('keydown', e=>{ if(e.key==='Enter') addCustomSymptom(); });
+  function addCustomSymptom(){
+    const input = document.getElementById('customSymptomIn');
+    const text = input.value.trim();
+    if(!text) return;
+    customCount++;
+    const id = 'custom'+customCount;
+    buildCard({ id, name:text, desc:'Added by you', weight:4 }, true);
+    input.value='';
+    document.getElementById('symptomSearch').dispatchEvent(new Event('input'));
+  }
+
+  /* ---------------- Search filter ---------------- */
+  document.getElementById('symptomSearch').addEventListener('input', e=>{
+    const q = e.target.value.trim().toLowerCase();
+    grid.querySelectorAll('.symptom-card').forEach(card=>{
+      card.classList.toggle('hidden', q.length>0 && !card.dataset.name.includes(q));
+    });
+  });
+
+  /* ---------------- Preset patterns ---------------- */
+  document.querySelectorAll('.preset-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('#symptomGrid input[type=checkbox]').forEach(cb=>{ if(cb.checked){ cb.checked=false; cb.dispatchEvent(new Event('change')); } });
+      const ids = PRESETS[btn.dataset.preset] || [];
+      ids.forEach(id=>{
+        const entry = cardIndex[id];
+        if(entry && !entry.cb.checked){ entry.cb.checked=true; entry.cb.dispatchEvent(new Event('change')); }
+      });
+    });
+  });
+
+  /* ---------------- Body map ---------------- */
+  const mapSelected = document.getElementById('mapSelected');
+  document.querySelectorAll('#bodyMap .region').forEach(region=>{
+    region.addEventListener('click', ()=>{
+      const key = region.dataset.region;
+      const id = REGION_TO_SYMPTOM[key];
+      if(!id || !cardIndex[id]) return;
+      const entry = cardIndex[id];
+      entry.cb.checked = !entry.cb.checked;
+      entry.cb.dispatchEvent(new Event('change'));
+      region.classList.toggle('picked', entry.cb.checked);
+      updateMapLabel();
+    });
+  });
+  function unmarkRegion(regionKey){
+    const el = document.querySelector(`#bodyMap .region[data-region="${regionKey}"]`);
+    if(el) el.classList.remove('picked');
+    updateMapLabel();
+  }
+  function updateMapLabel(){
+    const picked = [...document.querySelectorAll('#bodyMap .region.picked')].map(r=>{
+      const id = REGION_TO_SYMPTOM[r.dataset.region];
+      const s = SYMPTOMS.find(x=>x.id===id);
+      return s ? s.name : r.dataset.region;
+    });
+    mapSelected.textContent = picked.length ? picked.join(' · ') : 'No location selected';
+  }
+
+  /* ---------------- Build risk factors ---------------- */
+  const flist = document.getElementById('factorList');
+  FACTORS.forEach(f=>{
+    const row = document.createElement('label');
+    row.className='factor-row';
+    row.innerHTML = `<input type="checkbox"><span>${f.name}</span>`;
+    flist.appendChild(row);
+    row.querySelector('input').addEventListener('change', e=>{
+      if(e.target.checked) state.factors[f.id]=f.weight; else delete state.factors[f.id];
+      recalc();
+    });
+  });
+
+  /* ---------------- Timer ---------------- */
+  let timerInterval;
+  const timerBox = document.getElementById('timerBox');
+  const timerNum = document.getElementById('timerNum');
+  const timerCallout = document.getElementById('timerCallout');
+  function startTimer(){
+    state.timerStart = Date.now();
+    timerInterval = setInterval(()=>{
+      const secs = Math.floor((Date.now()-state.timerStart)/1000);
+      const m = String(Math.floor(secs/60)).padStart(2,'0');
+      const s = String(secs%60).padStart(2,'0');
+      timerNum.textContent = `${m}:${s}`;
+      const urgent = secs>=300;
+      timerBox.classList.toggle('urgent', urgent);
+      timerCallout.style.display = urgent?'block':'none';
+    }, 1000);
+  }
+  function stopTimer(){
+    clearInterval(timerInterval);
+    state.timerStart=null;
+    timerNum.textContent='00:00';
+    timerBox.classList.remove('urgent');
+    timerCallout.style.display='none';
+  }
+
+  /* ---------------- Score + gauge ---------------- */
+  const BANDS = [
+    { max:24, word:'Low', color:'--green' },
+    { max:49, word:'Moderate', color:'--amber' },
+    { max:74, word:'High', color:'--red' },
+    { max:100, word:'Emergency', color:'--red' },
+  ];
+  function cssVar(name){ return getComputedStyle(document.body).getPropertyValue(name).trim() || getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function getScore(){
+    let total=0;
+    Object.values(state.symptoms).forEach(s=>{
+      const onsetMult = (ONSET_OPTIONS.find(o=>o.v===s.onset) || {mult:1}).mult;
+      total += s.weight*(0.55+s.sev*0.25)*onsetMult;
+    });
+    Object.values(state.factors).forEach(w=> total+=w);
+    return Math.min(100, Math.round(total));
+  }
+  function bandFor(score){ return BANDS.find(b=>score<=b.max) || BANDS[BANDS.length-1]; }
+
+  const vScore=document.getElementById('vScore'), vStatus=document.getElementById('vStatus'), vPulse=document.getElementById('vPulse');
+  const gaugeCircle=document.getElementById('gaugeCircle'), gaugeText=document.getElementById('gaugeText'), gaugeWord=document.getElementById('gaugeWord');
+  const ecgPath=document.getElementById('ecgPath'), heartIconG=document.querySelector('.beat');
+  const emergencyBanner=document.getElementById('emergencyBanner');
+
+  function recalc(){
+    const score=getScore();
+    const band=bandFor(score);
+    const color = getComputedStyle(document.body).getPropertyValue(band.color).trim();
+
+    vScore.textContent=score;
+    vStatus.textContent = score===0?'no data':band.word.toLowerCase();
+    vStatus.style.background = score===0 ? 'transparent' : color+'22';
+    vStatus.style.color = score===0 ? 'var(--text-soft)' : color;
+    vStatus.style.border = '1px solid ' + (score===0 ? 'var(--stroke)' : color);
+
+    const pulse = 68 + Math.round(score*0.6);
+    vPulse.textContent = pulse;
+
+    const circumference = 515;
+    gaugeCircle.setAttribute('stroke-dashoffset', circumference-(circumference*score/100));
+    gaugeCircle.setAttribute('stroke', color);
+    gaugeText.textContent = score;
+    gaugeWord.textContent = score===0?'Not assessed':band.word+' risk';
+    gaugeWord.style.color = score===0?'var(--text)':color;
+
+    ecgPath.style.stroke = color;
+    ecgPath.style.animationDuration = (3.4 - (score/100)*2.2)+'s';
+    if(heartIconG) heartIconG.style.animationDuration = (1.15 - (score/100)*0.55)+'s';
+    document.getElementById('heartIcon').querySelector('path').style.fill = color;
+
+    const emergency = score>=50 && state.symptoms['chest'];
+    emergencyBanner.classList.toggle('show', !!emergency);
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    document.querySelectorAll('#symptomGrid input[type=checkbox]').forEach(cb=>{ cb.checked=false; cb.dispatchEvent(new Event('change')); });
+  });
+
+  /* ---------------- Log ---------------- */
+  const logList=document.getElementById('logList'), chartWrap=document.getElementById('chartWrap'), trendSvg=document.getElementById('trendSvg'), bestBadge=document.getElementById('bestBadge');
+
+  document.getElementById('logBtn').addEventListener('click', ()=>{
+    const score=getScore();
+    const tags=Object.keys(state.symptoms).map(id=>SYMPTOMS.find(s=>s.id===id).name);
+    state.log.push({ time:new Date(), score, tags });
+    if(soundOn) beep(score>=50 ? 880 : 440);
+    renderLog();
+  });
+  document.getElementById('clearLogBtn').addEventListener('click', ()=>{ state.log=[]; renderLog(); });
+  document.getElementById('exportBtn').addEventListener('click', ()=>{
+    if(state.log.length===0) return;
+    let text = 'Cardiac Symptom Tracer — Session Log\n\n';
+    state.log.forEach(e=>{
+      text += `${e.time.toLocaleString()} — score ${e.score}\n`;
+      text += (e.tags.length? '  symptoms: '+e.tags.join(', ') : '  no symptoms checked') + '\n\n';
+    });
+    text += 'Note: educational simulation, not a medical record.\n';
+    const blob = new Blob([text], {type:'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'symptom-log.txt';
+    a.click();
+  });
+
+  function renderLog(){
+    if(state.log.length===0){
+      logList.innerHTML = '<div class="log-empty">No readings logged yet.</div>';
+      chartWrap.style.display='none'; bestBadge.style.display='none';
+      return;
+    }
+    logList.innerHTML='';
+    [...state.log].reverse().forEach((e,revIdx)=>{
+      const idx = state.log.length-1-revIdx;
+      const band=bandFor(e.score);
+      const color = getComputedStyle(document.body).getPropertyValue(band.color).trim();
+      const row=document.createElement('div');
+      row.className='log-entry';
+      row.innerHTML = `
+        <div class="log-time">${e.time.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div>
+        <div class="log-score" style="color:${color}">${e.score}</div>
+        <div>${e.tags.length? e.tags.map(t=>`<span class="log-tag">${t}</span>`).join('') : '<span style="color:var(--text-soft)">none</span>'}</div>
+        <button class="del-btn" data-idx="${idx}" title="Delete">✕</button>`;
+      logList.appendChild(row);
+    });
+    logList.querySelectorAll('.del-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{ state.log.splice(Number(b.dataset.idx),1); renderLog(); });
+    });
+
+    if(state.log.length>=2){ chartWrap.style.display='block'; drawTrend(); } else chartWrap.style.display='none';
+
+    const best = state.log.reduce((m,e)=>e.score>m.score?e:m, state.log[0]);
+    bestBadge.style.display='block';
+    bestBadge.innerHTML = `Highest reading this session: <span>${best.score}</span> at ${best.time.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  }
+
+  function drawTrend(){
+    const pts=state.log; const w=600,h=130,pad=18;
+    const stepX=(w-pad*2)/(pts.length-1||1);
+    const y=s=>h-pad-(s/100)*(h-pad*2);
+    const path=pts.map((p,i)=>`${i===0?'M':'L'}${pad+i*stepX},${y(p.score)}`).join(' ');
+    const dots=pts.map((p,i)=>`<circle cx="${pad+i*stepX}" cy="${y(p.score)}" r="4" fill="var(--green)"/>`).join('');
+    const green = getComputedStyle(document.body).getPropertyValue('--green').trim();
+    trendSvg.innerHTML = `
+      <line x1="${pad}" y1="${y(25)}" x2="${w-pad}" y2="${y(25)}" stroke="var(--stroke)" stroke-dasharray="3,4"/>
+      <line x1="${pad}" y1="${y(50)}" x2="${w-pad}" y2="${y(50)}" stroke="var(--stroke)" stroke-dasharray="3,4"/>
+      <line x1="${pad}" y1="${y(75)}" x2="${w-pad}" y2="${y(75)}" stroke="var(--stroke)" stroke-dasharray="3,4"/>
+      <path d="${path}" fill="none" stroke="${green}" stroke-width="2.5"/>
+      ${dots}`;
+  }
+
+  /* ---------------- BMI + HR zone calculator ---------------- */
+  document.getElementById('calcBtn').addEventListener('click', ()=>{
+    const h = Number(document.getElementById('heightIn').value);
+    const w = Number(document.getElementById('weightIn').value);
+    const age = Number(document.getElementById('ageIn').value);
+    const resultBox = document.getElementById('bmiResult');
+    if(!h || !w){ resultBox.style.display='none'; return; }
+    const bmi = w/((h/100)**2);
+    let cat, color;
+    if(bmi<18.5){cat='Underweight'; color='var(--amber)';}
+    else if(bmi<25){cat='Normal range'; color='var(--green)';}
+    else if(bmi<30){cat='Overweight'; color='var(--amber)';}
+    else {cat='Obese range'; color='var(--red)';}
+    document.getElementById('bmiNum').textContent = bmi.toFixed(1);
+    document.getElementById('bmiNum').style.color = color;
+    document.getElementById('bmiCat').textContent = cat + ' (BMI is a rough screening measure, not a diagnosis)';
+
+    let hrHtml='';
+    if(age>0){
+      const maxHR = 220-age;
+      const zones=[['Light (50–60%)',0.5,0.6],['Moderate (60–70%)',0.6,0.7],['Vigorous (70–85%)',0.7,0.85]];
+      hrHtml += `<div class="hr-zone-row"><span>Estimated max HR</span><span>${maxHR} bpm</span></div>`;
+      zones.forEach(([label,lo,hi])=>{
+        hrHtml += `<div class="hr-zone-row"><span>${label}</span><span>${Math.round(maxHR*lo)}–${Math.round(maxHR*hi)} bpm</span></div>`;
+      });
+    }
+    document.getElementById('hrZones').innerHTML = hrHtml;
+    resultBox.style.display='block';
+  });
+
+  /* ---------------- Tip rotator ---------------- */
+  const tipBox = document.getElementById('tipBox');
+  let tipIdx = 0;
+  function showTip(){
+    tipBox.style.opacity=0;
+    setTimeout(()=>{
+      tipBox.innerHTML = `<strong>Did you know</strong>${TIPS[tipIdx % TIPS.length]}`;
+      tipBox.style.opacity=1;
+      tipIdx++;
+    },250);
+  }
+  tipBox.style.transition='opacity .25s ease';
+  showTip();
+  setInterval(showTip, 7000);
+
+  recalc();
+})();
+
+/* ============================================================
+   SPLASH + SECOND UI (Problem Matcher) + dataset line chart
+   ============================================================ */
+(function(){
+
+  /* ---------------- Splash & UI switching ---------------- */
+  const splash        = document.getElementById('splash');
+  const dashFrame     = document.getElementById('dashFrame');
+  const matcherFrame  = document.getElementById('matcherFrame');
+  const liveFrame     = document.getElementById('liveFrame');
+
+  /* Logo intro: pure logo + progress bar for ~5 s, then the menu fades in.
+     Tapping/clicking anywhere on the splash skips the wait. */
+  const INTRO_MS = 5000;
+  const introTimer = setTimeout(()=> splash.classList.add('ready'), INTRO_MS);
+  function skipIntro(){
+    clearTimeout(introTimer);
+    splash.classList.add('ready');
+  }
+  splash.addEventListener('click', skipIntro, { once:true });
+  document.addEventListener('keydown', function onIntroKey(e){
+    if(!splash.classList.contains('ready') && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')){
+      skipIntro();
+      document.removeEventListener('keydown', onIntroKey);
+    }
+  });
+
+  function showUI(which){
+    dashFrame.style.display    = which==='dash'    ? '' : 'none';
+    matcherFrame.style.display = which==='matcher' ? '' : 'none';
+    liveFrame.style.display    = which==='live'    ? '' : 'none';
+    splash.classList.add('hide');
+    window.scrollTo(0,0);
+  }
+  document.getElementById('goDash').addEventListener('click', ()=> showUI('dash'));
+  document.getElementById('goMatcher').addEventListener('click', ()=> showUI('matcher'));
+  document.getElementById('goLive').addEventListener('click', ()=> enterLiveUI());
+  document.getElementById('openMatcher').addEventListener('click', ()=> showUI('matcher'));
+  document.getElementById('openLive').addEventListener('click', ()=> enterLiveUI());
+  document.getElementById('openLiveFromMatcher').addEventListener('click', ()=> enterLiveUI());
+  document.getElementById('backToDash').addEventListener('click', ()=> showUI('dash'));
+  document.getElementById('backFromLive').addEventListener('click', ()=>{ disconnectAgent(); showUI('dash'); });
+
+  /* Opening the Live sensor UI (the python-agent screen):
+     - when this page is served by agent.py on localhost → connect automatically
+     - when opened as a plain file → prefill localhost and wait for Connect */
+  function enterLiveUI(){
+    showUI('live');
+    defaultAgentUrl();
+    if(location.protocol === 'http:' || location.protocol === 'https:'){
+      if(!eventSource) connectAgent();   // auto-connect to the local agent
+    } else {
+      setConnState('', 'Open via localhost for auto-connect');
+      agentMeta.innerHTML = 'Tip: run <strong>python agent.py</strong> then open <strong>http://localhost:8777</strong> — the full code runs there and this UI connects by itself.';
+    }
+  }
+
+  /* Keep the theme buttons in sync across all three UIs */
+  const mainThemeBtn   = document.getElementById('themeToggle');
+  const mThemeBtn      = document.getElementById('matcherThemeToggle');
+  const liveThemeBtn   = document.getElementById('liveThemeToggle');
+  function syncThemeLabels(){
+    const label = document.body.getAttribute('data-theme')==='dark' ? 'Light mode' : 'Dark mode';
+    mainThemeBtn.textContent = label;
+    mThemeBtn.textContent = label;
+    liveThemeBtn.textContent = label;
+  }
+  function redrawCharts(){
+    if(lastResult) drawMatchChart();
+    drawLiveChart();
+    drawWave();
+  }
+  function flipTheme(){
+    const next = document.body.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', next);
+    syncThemeLabels();
+    redrawCharts();
+  }
+  mThemeBtn.addEventListener('click', flipTheme);
+  liveThemeBtn.addEventListener('click', flipTheme);
+  /* mainThemeBtn already flips the theme in the original script block —
+     this listener only runs after it, to sync the other labels + charts */
+  mainThemeBtn.addEventListener('click', ()=>{ syncThemeLabels(); redrawCharts(); });
+
+  /* ============================================================
+     "BACKEND" — built-in heart-attack dataset (educational sample)
+     ============================================================ */
+
+  /* Symptom phrase index: phrase → tag + weight.
+     After normalisation we scan the user text for each phrase.
+     Scoring keeps only the heaviest hit per tag (no double count). */
+  const LEXICON = [
+    // chest
+    { p:'crushing chest',        tag:'chest', w:30 },
+    { p:'crushing pain',         tag:'chest', w:28 },
+    { p:'chest pain',            tag:'chest', w:28 },
+    { p:'chest pressure',        tag:'chest', w:28 },
+    { p:'pressure in my chest',  tag:'chest', w:28 },
+    { p:'chest tightness',       tag:'chest', w:26 },
+    { p:'tight chest',           tag:'chest', w:26 },
+    { p:'chest discomfort',      tag:'chest', w:24 },
+    { p:'squeezing',             tag:'chest', w:28 },
+    { p:'heavy chest',           tag:'chest', w:26 },
+    { p:'pain in my chest',      tag:'chest', w:28 },
+    { p:'chest',                 tag:'chest', w:20 },
+    // arms
+    { p:'left arm',              tag:'leftarm', w:14 },
+    { p:'left shoulder',         tag:'leftarm', w:11 },
+    { p:'arm pain',              tag:'arm', w:9 },
+    { p:'arm numbness',          tag:'arm', w:9 },
+    { p:'arm tingling',          tag:'arm', w:8 },
+    { p:'both arms',             tag:'arm', w:10 },
+    { p:'tingling',              tag:'arm', w:5 },
+    // jaw / neck / back / stomach
+    { p:'jaw pain',              tag:'jaw', w:10 },
+    { p:'jaw',                   tag:'jaw', w:9 },
+    { p:'neck pain',             tag:'neck', w:8 },
+    { p:'neck',                  tag:'neck', w:6 },
+    { p:'back pain',             tag:'back', w:9 },
+    { p:'upper back',            tag:'back', w:9 },
+    { p:'between the shoulder',  tag:'back', w:10 },
+    { p:'shoulder blade',        tag:'back', w:10 },
+    { p:'stomach pain',          tag:'stomach', w:8 },
+    { p:'upper stomach',         tag:'stomach', w:8 },
+    { p:'stomach',               tag:'stomach', w:6 },
+    { p:'epigastric',            tag:'stomach', w:8 },
+    // breathing
+    { p:'shortness of breath',   tag:'breath', w:16 },
+    { p:'short of breath',       tag:'breath', w:16 },
+    { p:'shortness breath',      tag:'breath', w:16 },
+    { p:'breathless',            tag:'breath', w:15 },
+    { p:'out of breath',         tag:'breath', w:13 },
+    { p:'hard to breathe',       tag:'breath', w:14 },
+    { p:'difficulty breathing',  tag:'breath', w:14 },
+    { p:'breathe',               tag:'breath', w:7 },
+    // sweat / nausea / dizzy / fatigue / palpitations / anxiety
+    { p:'cold sweat',            tag:'sweat', w:12 },
+    { p:'sweating',              tag:'sweat', w:10 },
+    { p:'clammy',                tag:'sweat', w:10 },
+    { p:'sweat',                 tag:'sweat', w:9 },
+    { p:'nausea',                tag:'nausea', w:9 },
+    { p:'nauseous',              tag:'nausea', w:9 },
+    { p:'vomit',                 tag:'nausea', w:8 },
+    { p:'throwing up',           tag:'nausea', w:8 },
+    { p:'dizziness',             tag:'dizzy', w:9 },
+    { p:'dizzy',                 tag:'dizzy', w:9 },
+    { p:'lightheaded',           tag:'dizzy', w:9 },
+    { p:'light headed',          tag:'dizzy', w:9 },
+    { p:'faint',                 tag:'dizzy', w:8 },
+    { p:'unusual tiredness',     tag:'fatigue', w:8 },
+    { p:'exhausted',             tag:'fatigue', w:7 },
+    { p:'fatigue',               tag:'fatigue', w:7 },
+    { p:'tired',                 tag:'fatigue', w:6 },
+    { p:'palpitation',           tag:'palp', w:6 },
+    { p:'heart racing',          tag:'palp', w:7 },
+    { p:'racing heart',          tag:'palp', w:7 },
+    { p:'irregular heartbeat',   tag:'palp', w:7 },
+    { p:'fluttering',            tag:'palp', w:6 },
+    { p:'heartbeat',             tag:'palp', w:4 },
+    { p:'panic',                 tag:'anxiety', w:5 },
+    { p:'anxiety',               tag:'anxiety', w:4 },
+    { p:'anxious',               tag:'anxiety', w:4 },
+    { p:'doom',                  tag:'anxiety', w:5 },
+    // burning / non-cardiac clues
+    { p:'heartburn',             tag:'burning', w:6 },
+    { p:'burning',               tag:'burning', w:4 },
+    { p:'acid reflux',           tag:'burning', w:6 },
+    { p:'sharp pain',            tag:'sharp', w:5 },
+    { p:'sharp',                 tag:'sharp', w:4 },
+    { p:'breathing in',          tag:'pleur', w:6 },
+    { p:'when i breathe',        tag:'pleur', w:6 },
+    { p:'while breathing',       tag:'pleur', w:6 },
+    { p:'cough',                 tag:'cough', w:5 },
+  ];
+
+  const TAG_LABELS = {
+    chest:'Chest pressure/pain', leftarm:'Left arm / shoulder', arm:'Arm pain/tingling',
+    jaw:'Jaw pain', neck:'Neck pain', back:'Upper back pain', stomach:'Upper stomach pain',
+    breath:'Shortness of breath', sweat:'Cold sweat', nausea:'Nausea/vomiting',
+    dizzy:'Lightheadedness', fatigue:'Fatigue', palp:'Palpitations',
+    anxiety:'Anxiety/panic', burning:'Heartburn/burning', sharp:'Sharp pain',
+    pleur:'Pain while breathing', cough:'Cough'
+  };
+
+  /* Background risk factors found in free text */
+  const RISK_FACTORS = [
+    { p:'diabetes', label:'Diabetes', w:5 },
+    { p:'diabetic', label:'Diabetes', w:5 },
+    { p:'smoker', label:'Smoker', w:5 },
+    { p:'smoking', label:'Smoker', w:5 },
+    { p:'high blood pressure', label:'High blood pressure', w:4 },
+    { p:'blood pressure', label:'Blood-pressure history', w:3 },
+    { p:'hypertension', label:'High blood pressure', w:4 },
+    { p:'high cholesterol', label:'High cholesterol', w:3 },
+    { p:'cholesterol', label:'Cholesterol history', w:2 },
+    { p:'family history', label:'Family history', w:3 },
+    { p:'heart disease', label:'Heart-disease history', w:3 },
+  ];
+
+  /* Case records — sample "big data" rows the text is matched against.
+     (Synthetic teaching examples, NOT real patient records.) */
+  const CASES = [
+    { id:'HA-001', title:'Classic STEMI — crushing central pain, left arm, sweat', tags:['chest','leftarm','breath','sweat','nausea'], kind:'emergency' },
+    { id:'HA-002', title:'Atypical / silent MI — fatigue, jaw & back ache',        tags:['fatigue','jaw','back','nausea','breath'], kind:'emergency' },
+    { id:'HA-003', title:'Inferior MI — upper-stomach pain like bad heartburn',    tags:['stomach','nausea','sweat','breath','chest'], kind:'emergency' },
+    { id:'HA-004', title:'Unstable angina — recurring chest pressure on effort',  tags:['chest','arm','breath','fatigue'], kind:'high' },
+    { id:'HA-005', title:'Exertional angina — tight chest when climbing',         tags:['chest','breath','leftarm'], kind:'high' },
+    { id:'HA-006', title:'Diabetic silent ischemia — tiredness & clammy sweat',   tags:['fatigue','sweat','breath','stomach'], kind:'high' },
+    { id:'HA-007', title:'Anxiety / panic mimic — racing heart, air hunger',      tags:['palp','anxiety','chest','breath','dizzy'], kind:'mimic' },
+    { id:'HA-008', title:'Arrhythmia episode — fluttering beat, lightheaded',     tags:['palp','dizzy','breath','fatigue'], kind:'mimic' },
+    { id:'HA-009', title:'GERD / heartburn flare — burning upper stomach',        tags:['stomach','burning'], kind:'mimic' },
+    { id:'HA-010', title:'Pleuritic / MSK chest wall pain — sharp, worse on inhale', tags:['chest','sharp','pleur','cough'], kind:'mimic' },
+    { id:'HA-011', title:'Pericarditis-like — chest ache radiating to the back',  tags:['chest','back','breath'], kind:'high' },
+    { id:'HA-012', title:'Dissection warning — tearing chest pain to the back',   tags:['chest','back','arm','neck'], kind:'emergency' },
+    { id:'HA-013', title:'Predromal woman’s MI — days of odd fatigue, jaw ache',  tags:['fatigue','jaw','nausea','neck'], kind:'emergency' },
+    { id:'HA-014', title:'Simple overexertion — transient ache, settles with rest', tags:['chest','fatigue'], kind:'mimic' },
+    { id:'HA-015', title:'Hypoglycemia-like — sweat, dizzy, palpitations',       tags:['sweat','dizzy','palp','fatigue'], kind:'mimic' },
+    { id:'HA-016', title:'Anterior MI — prolonged chest pressure + vomiting',    tags:['chest','nausea','sweat','breath','leftarm'], kind:'emergency' },
+    { id:'HA-017', title:'Stable angina — pressure gone in a few minutes',       tags:['chest','arm'], kind:'high' },
+    { id:'HA-018', title:'Post-viral chest wall tenderness — sharp, non-cardiac', tags:['chest','sharp','cough'], kind:'mimic' },
+  ];
+
+  const SAMPLES = {
+    classic:
+      'Since about 30 minutes I have a crushing chest pain in the middle of my chest, ' +
+      'squeezing and heavy, spreading down my left arm. I am cold sweating, short of breath and nausea.',
+    atypical:
+      'For two days I have unusual tiredness and a dull ache in my jaw and upper back. ' +
+      'A bit lightheaded, no real chest pain. I am a 68 year old woman with diabetes and high blood pressure.',
+    mild:
+      'Occasional slight tightness in my chest when I climb stairs, it goes away after resting a minute. ' +
+      'Feeling a bit anxious lately, heartbeat sometimes races.',
+    notcardiac:
+      'Sharp pain on the right side of my chest when I breathe in or cough, worse when I twist my body. ' +
+      'No sweating, no nausea. I twisted my ankle yesterday too.'
+  };
+
+  /* ---------------- Matching engine ---------------- */
+  function normalize(s){
+    return ' ' + s.toLowerCase()
+      .replace(/[’']/g, "'")
+      .replace(/[^a-z0-9']+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() + ' ';
+  }
+
+  /* phrase present in normalised text, not mid-word, not negated ("no chest pain") */
+  function hasPhrase(norm, phrase){
+    const bare = phrase.trim();
+    let from = 0, idx;
+    while((idx = norm.indexOf(bare, from)) !== -1){
+      const before = norm[idx-1];
+      const after  = norm[idx + bare.length];
+      const okBefore = (before === undefined) || before === ' ';
+      let okAfter = (after === undefined) || after === ' ';
+      if(okAfter && after === 's'){
+        // allow simple plurals: "arm" found in "arms"
+        const afterS = norm[idx + bare.length + 1];
+        okAfter = (afterS === undefined) || afterS === ' ';
+      }
+      if(okBefore && okAfter){
+        // negation scope before the match: "no X", "no X or Y", "without X", "free of X"
+        // a "but" resets the scope ("no idea but chest pain..." still counts as present)
+        const win = norm.slice(Math.max(0, idx-46), idx);
+        const negated = /\b(no|not|without|denies|negative|free of)\b(?:\s+\w+){0,3}(?:\s+or(?:\s+\w+){0,2}){0,3}\s*$/.test(win)
+                        && !/\bbut\b/.test(win);
+        if(!negated) return true;
+      }
+      from = idx + 1;
+    }
+    return false;
+  }
+
+  function matchText(text){
+    const norm = normalize(text);
+    const hits = {};        // tag -> { w, phrases:[] }
+    LEXICON.forEach(e=>{
+      if(hasPhrase(norm, e.p)){
+        const cur = hits[e.tag];
+        if(!cur){ hits[e.tag] = { w:e.w, phrases:[e.p] }; }
+        else { if(e.w > cur.w) cur.w = e.w; cur.phrases.push(e.p); }
+      }
+    });
+
+    const factors = [];
+    RISK_FACTORS.forEach(f=>{
+      if(!factors.some(x=>x.label===f.label) && hasPhrase(norm, f.p)) factors.push({ label:f.label, w:f.w });
+    });
+    /* crude age pickup: "68 year old", "I am 52" */
+    const ageM = norm.match(/\b(\d{2})\s*(year|yr)s?\s*old\b/) || norm.match(/\bi am (\d{2})\b/);
+    let ageBonus = 0;
+    if(ageM && Number(ageM[1]) >= 55){ ageBonus = 4; factors.push({ label:'Age ≥55 ('+ageM[1]+')', w:4 }); }
+    else if(ageM && Number(ageM[1]) >= 45){ ageBonus = 2; factors.push({ label:'Age ≥45 ('+ageM[1]+')', w:2 }); }
+
+    /* intensity multipliers */
+    let intensity = 1;
+    if(/\b(crushing|unbearable|severe|worst|terrible|cannot breathe|can not breathe|can t breathe|emergency)\b/.test(norm)) intensity = 1.2;
+    else if(/\b(mild|slight|little|barely|minor|small)\b/.test(norm)) intensity = 0.8;
+
+    /* onset bonus */
+    let onsetB = 0;
+    if(/\b(\d+)\s*(minute|min|hour|hr|second)s?\b/.test(norm))      onsetB = 8;
+    else if(/\b(sudden|suddenly|just now|since now|acute)\b/.test(norm)) onsetB = 7;
+    else if(/\b(since|for the last|for last|ongoing|going on)\b/.test(norm)) onsetB = 5;
+    else if(/\b(days|day|week|weeks)\b/.test(norm))                 onsetB = 3;
+
+    /* keyword component (max 70) */
+    let kwSum = 0;
+    const matchedTags = Object.keys(hits);
+    matchedTags.forEach(t => kwSum += hits[t].w);
+    const kwPart = Math.min(70, Math.round(kwSum * intensity));
+
+    /* risk-factor component (max 15) */
+    const rfPart = Math.min(15, factors.reduce((s,f)=>s+f.w, 0));
+
+    /* case similarity (Jaccard over tags) → boost up to 14 */
+    const userTags = new Set(matchedTags);
+    const sims = CASES.map(c=>{
+      const setB = new Set(c.tags);
+      let inter = 0; userTags.forEach(t=>{ if(setB.has(t)) inter++; });
+      const union = new Set([...userTags, ...setB]).size;
+      return { c, sim: union ? inter/union : 0 };
+    }).sort((a,b)=> b.sim - a.sim);
+    const topSims = sims.slice(0,3);
+    const simBoost = Math.round((topSims[0] ? topSims[0].sim : 0) * 14);
+
+    /* non-cardiac pattern penalty */
+    const pleuritic = (hits['pleur'] || hits['cough']) && !hits['sweat'] && !hits['nausea'] && !hits['leftarm'];
+    const penalty = pleuritic ? -12 : 0;
+
+    /* stage-by-stage cumulative values for the line chart */
+    const s1 = kwPart;
+    const s2 = s1 + onsetB;
+    const s3 = s2 + rfPart;
+    const s4 = s3 + simBoost;
+    const final = Math.max(0, Math.min(100, s4 + penalty));
+
+    const emergency = final >= 75 ||
+      !!(hits['chest'] && (hits['leftarm'] || hits['jaw'] || hits['breath'] || hits['sweat']) && final >= 50);
+
+    return {
+      hits, factors, matchedTags, onsetB, rfPart, kwPart, simBoost, penalty,
+      stages:[s1, s2, s3, s4, final],
+      topSims, final, emergency, intensity
+    };
+  }
+
+  function bandFor(v){
+    if(v < 25) return { word:'Low signal', color:'--green' };
+    if(v < 50) return { word:'Moderate signal', color:'--amber' };
+    if(v < 75) return { word:'High signal', color:'--red' };
+    return { word:'Emergency pattern', color:'--red' };
+  }
+  function cssVar(name){
+    return getComputedStyle(document.body).getPropertyValue(name).trim() ||
+           getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  /* ---------------- Session history for tracking ---------------- */
+  const history = [];   // { pct, time }
+  let lastResult = null;
+
+  /* ---------------- Chart ---------------- */
+  const STAGE_LABELS = ['Keywords', 'Onset', 'History', 'Cases', 'Final'];
+
+  function drawMatchChart(){
+    const svg = document.getElementById('matchSvg');
+    if(!svg) return;
+    const w = 600, h = 180, padL = 36, padR = 14, padT = 14, padB = 34;
+    const plotW = w - padL - padR, plotH = h - padT - padB;
+    const y = v => padT + (1 - v/100) * plotH;
+
+    const green  = cssVar('--green')  || '#4CE0B3';
+    const amber  = cssVar('--amber')  || '#E8A94C';
+    const red    = cssVar('--red')    || '#FF5C5C';
+    const stroke = cssVar('--stroke') || '#1E2C3B';
+    const soft   = cssVar('--text-soft') || '#7E93A3';
+
+    let g = '';
+    /* horizontal grid + labels */
+    [0,25,50,75,100].forEach(v=>{
+      g += `<line x1="${padL}" y1="${y(v)}" x2="${w-padR}" y2="${y(v)}" stroke="${stroke}" stroke-dasharray="3,4"/>`;
+      g += `<text x="${padL-6}" y="${y(v)+3}" text-anchor="end" font-family="IBM Plex Mono" font-size="9" fill="${soft}">${v}</text>`;
+    });
+    /* emergency line */
+    g += `<line x1="${padL}" y1="${y(75)}" x2="${w-padR}" y2="${y(75)}" stroke="${red}" stroke-dasharray="6,4" opacity="0.8"/>`;
+
+    /* session history (dashed amber) */
+    if(history.length >= 1){
+      const n = history.length;
+      const hx = i => n === 1 ? padL + plotW/2 : padL + (i/(n-1)) * plotW;
+      const hpath = history.map((p,i)=> `${i===0?'M':'L'}${hx(i)},${y(p.pct)}`).join(' ');
+      if(n >= 2) g += `<path d="${hpath}" fill="none" stroke="${amber}" stroke-width="2" stroke-dasharray="6,5"/>`;
+      history.forEach((p,i)=>{
+        g += `<circle cx="${hx(i)}" cy="${y(p.pct)}" r="4" fill="${amber}"><title>Run #${i+1}: ${p.pct}%</title></circle>`;
+      });
+    }
+
+    /* current run stage build-up (solid green) */
+    if(lastResult){
+      const stages = lastResult.stages;   // 5 values
+      const sx = i => padL + (i/(stages.length-1)) * plotW;
+      const spath = stages.map((v,i)=> `${i===0?'M':'L'}${sx(i)},${y(v)}`).join(' ');
+      g += `<path d="${spath}" fill="none" stroke="${green}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      stages.forEach((v,i)=>{
+        g += `<circle cx="${sx(i)}" cy="${y(v)}" r="4.5" fill="${green}"><title>${STAGE_LABELS[i]}: ${v}%</title></circle>`;
+        g += `<text x="${sx(i)}" y="${y(v)-9}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="${green}">${v}%</text>`;
+      });
+      /* stage labels on x-axis */
+      STAGE_LABELS.forEach((lb,i)=>{
+        g += `<text x="${sx(i)}" y="${h-12}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="${soft}">${lb}</text>`;
+      });
+    }
+    svg.innerHTML = g;
+  }
+
+  /* ---------------- Result rendering ---------------- */
+  function renderResult(res){
+    document.getElementById('matchResultPanel').style.display = 'block';
+
+    /* animated % counter */
+    const big = document.getElementById('mPct');
+    let cur = 0;
+    const target = res.final;
+    const step = Math.max(1, Math.round(target/28));
+    const iv = setInterval(()=>{
+      cur = Math.min(target, cur + step);
+      big.textContent = cur + '%';
+      if(cur >= target) clearInterval(iv);
+    }, 22);
+
+    const band = bandFor(res.final);
+    const color = cssVar(band.color);
+    big.style.color = color;
+    document.getElementById('mBand').textContent = band.word;
+    document.getElementById('mBand').style.color = color;
+    document.getElementById('mBar').style.width = res.final + '%';
+    document.getElementById('mBar').style.background = color;
+    document.getElementById('mEmergency').classList.toggle('show', res.emergency);
+
+    /* matched keyword chips */
+    const kwBox = document.getElementById('mKeywords');
+    if(res.matchedTags.length === 0){
+      kwBox.innerHTML = '<span class="empty-note">No known symptom phrases recognised — try describing the pain location and sensation.</span>';
+    } else {
+      kwBox.innerHTML = res.matchedTags.map(t =>
+        `<span class="kw-chip">${TAG_LABELS[t] || t}</span>`
+      ).join('') + res.factors.map(f =>
+        `<span class="kw-chip riskf">${f.label}</span>`
+      ).join('');
+    }
+
+    /* closest dataset cases */
+    const caseBox = document.getElementById('mCases');
+    caseBox.innerHTML = res.topSims.map(({c, sim}) => `
+      <div class="case-card">
+        <div class="ctitle">${c.title}<span class="cid">${c.id} · ${c.kind}</span></div>
+        <div class="csim">${Math.round(sim*100)}% match</div>
+      </div>`).join('');
+
+    /* why-list */
+    const why = [];
+    if(res.matchedTags.length)
+      why.push(`Recognised ${res.matchedTags.length} symptom group(s): ${res.matchedTags.map(t=>TAG_LABELS[t]||t).join(', ')} — keyword score ${res.kwPart}/70.`);
+    else
+      why.push('No symptom phrases from the dataset were recognised in your text.');
+    if(res.onsetB) why.push(`Timing words (sudden / minutes / hours) added +${res.onsetB}.`);
+    if(res.rfPart) why.push(`Background risk factors in your text added +${res.rfPart}.`);
+    if(res.simBoost) why.push(`Closest dataset case overlap added +${res.simBoost} (case similarity).`);
+    if(res.penalty) why.push(`Pain that is sharp and worse breathing in is often non-cardiac — ${res.penalty} adjustment.`);
+    if(res.intensity < 1) why.push('Mild/slight wording scaled the keyword score down (×0.8).');
+    if(res.intensity > 1) why.push('Severe/crushing wording scaled the keyword score up (×1.2).');
+    why.push(`Bands: 0–24 low · 25–49 moderate · 50–74 high · 75–100 emergency. This run: ${band.word}.`);
+    document.getElementById('mWhy').innerHTML = why.map(x=>`<li>${x}</li>`).join('');
+
+    lastResult = res;
+    drawMatchChart();
+    updateMeta();
+  }
+
+  function updateMeta(){
+    document.getElementById('dsMeta').innerHTML =
+      `Dataset loaded: <strong>${CASES.length}</strong> sample cases · <strong>${LEXICON.length}</strong> indexed phrases · runs this session: <strong>${history.length}</strong>`;
+  }
+
+  /* ---------------- Wire up the matcher UI ---------------- */
+  const problemInput = document.getElementById('problemInput');
+
+  document.querySelectorAll('.sample-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{ problemInput.value = SAMPLES[chip.dataset.sample] || ''; problemInput.focus(); });
+  });
+
+  document.getElementById('runMatchBtn').addEventListener('click', ()=>{
+    const text = problemInput.value.trim();
+    if(text.length < 8){
+      problemInput.style.borderColor = 'var(--red)';
+      problemInput.placeholder = 'Please write at least a full sentence describing the problem…';
+      setTimeout(()=>{ problemInput.style.borderColor = ''; }, 1600);
+      return;
+    }
+    const res = matchText(text);
+    history.push({ pct: res.final, time: new Date() });
+    if(history.length > 12) history.shift();   // keep chart readable
+    renderResult(res);
+    document.getElementById('matchResultPanel').scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+
+  document.getElementById('clearMatchBtn').addEventListener('click', ()=>{
+    problemInput.value = '';
+    document.getElementById('matchResultPanel').style.display = 'none';
+  });
+
+  updateMeta();
+
+  /* ============================================================
+     LIVE SENSOR AGENT (UI 3) — talks to agent.py over SSE
+     ============================================================ */
+  const connDot   = document.getElementById('connDot');
+  const connText  = document.getElementById('connText');
+  const agentUrl  = document.getElementById('agentUrl');
+  const agentMeta = document.getElementById('agentMeta');
+  const srcBadge  = document.getElementById('srcBadge');
+  const waveBadge = document.getElementById('waveBadge');
+
+  const livePts  = [];        // { t, risk } — points for the line chart
+  const waveBuf  = [];        // raw waveform samples
+  const csvLog   = [];        // full-resolution log for CSV export
+  let eventSource = null;
+  let reconnectTimer = null;
+  let lastSnap = null;
+  let statMax = null, statMin = null;
+
+  function defaultAgentUrl(){
+    /* If this page is being served by agent.py, same-origin is enough */
+    if(!agentUrl.value){
+      agentUrl.value = (location.protocol === 'http:' || location.protocol === 'https:')
+        ? location.origin
+        : 'http://localhost:8777';
+    }
+  }
+
+  function setConnState(state, text){
+    connDot.className = 'conn-dot' + (state ? ' ' + state : '');
+    connText.textContent = text;
+  }
+
+  function connectAgent(){
+    disconnectAgent(true);
+    defaultAgentUrl();
+    let base = agentUrl.value.trim().replace(/\/+$/, '');
+    if(!base){ setConnState('err', 'Enter the agent URL first'); return; }
+    if(!/^https?:\/\//i.test(base)) base = 'http://' + base;
+    agentUrl.value = base;
+    setConnState('busy', 'Connecting to agent…');
+    agentMeta.textContent = 'Opening event stream ' + base + '/api/stream …';
+
+    try{ eventSource = new EventSource(base + '/api/stream'); }
+    catch(e){
+      setConnState('err', 'Could not open stream — is agent.py running?');
+      agentMeta.textContent = String(e);
+      return;
+    }
+
+    eventSource.onopen = ()=>{
+      setConnState('ok', 'Connected — live data flowing');
+      agentMeta.innerHTML = 'Agent online · source will show <strong>serial</strong> when the strap is attached, <strong>simulator</strong> otherwise.';
+    };
+    eventSource.onmessage = (ev)=>{
+      try{ onAgentSnapshot(JSON.parse(ev.data), base); }
+      catch(e){ /* skip malformed frame */ }
+    };
+    eventSource.onerror = ()=>{
+      setConnState('err', 'Connection lost — retrying every 3s…');
+      agentMeta.textContent = 'Stream to ' + base + ' failed. Start it with: python agent.py   (then press Connect again).';
+      eventSource.close(); eventSource = null;
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(()=>{ if(liveFrame.style.display !== 'none') connectAgent(); }, 3000);
+    };
+  }
+
+  function disconnectAgent(silent){
+    clearTimeout(reconnectTimer); reconnectTimer = null;
+    if(eventSource){ eventSource.close(); eventSource = null; }
+    if(!silent){
+      setConnState('', 'Disconnected');
+      agentMeta.textContent = 'Disconnected from the agent.';
+    }
+  }
+
+  function onAgentSnapshot(s, base){
+    lastSnap = s;
+    const now = Date.now();
+
+    /* vitals */
+    document.getElementById('lvHr').textContent   = (s.hr   != null ? Math.round(s.hr)   : '—');
+    document.getElementById('lvSpo2').textContent = (s.spo2 != null ? Math.round(s.spo2) : '—');
+    document.getElementById('lvHrv').textContent  = (s.hrv  != null ? Math.round(s.hrv)  : '—');
+    document.getElementById('lvQual').textContent = (s.quality != null ? s.quality.toFixed(2) : '—');
+
+    /* source badge */
+    const isHw = s.source === 'serial';
+    srcBadge.textContent = isHw ? ('strap · ' + (s.device || 'serial')) : 'simulator';
+    srcBadge.className = 'src-badge ' + (isHw ? 'hw' : 'sim');
+    waveBadge.textContent = isHw ? 'strap signal' : 'simulated ecg';
+    waveBadge.className = 'src-badge ' + (isHw ? 'hw' : 'sim');
+
+    /* big % */
+    const pct = Math.round(s.risk || 0);
+    const band = bandFor(pct);
+    const color = cssVar(band.color);
+    const pctEl = document.getElementById('lvPct');
+    pctEl.textContent = pct + '%';
+    pctEl.style.color = color;
+    const bandEl = document.getElementById('lvBand');
+    bandEl.textContent = band.word;
+    bandEl.style.color = color;
+    document.getElementById('lvBar').style.width = pct + '%';
+    document.getElementById('lvBar').style.background = color;
+    document.getElementById('lvEmergency').classList.toggle('show', !!s.emergency);
+    document.getElementById('lvWhy').innerHTML =
+      (s.reasons && s.reasons.length ? s.reasons : ['No reasons reported yet.'])
+        .map(r => `<li>${r}</li>`).join('');
+
+    /* push chart point (throttled by the agent's 250 ms stream) */
+    livePts.push({ t: now, risk: pct });
+    if(livePts.length > 480) livePts.shift();
+    csvLog.push([new Date(s.t * 1000).toISOString(), s.risk, s.hr, s.spo2, s.hrv, s.quality, s.band].join(','));
+    if(csvLog.length > 5000) csvLog.shift();
+    statMax = (statMax == null) ? pct : Math.max(statMax, pct);
+    statMin = (statMin == null) ? pct : Math.min(statMin, pct);
+
+    /* waveform */
+    if(Array.isArray(s.wave)){
+      for(let i=0;i<s.wave.length;i++) waveBuf.push(s.wave[i]);
+      while(waveBuf.length > 300) waveBuf.shift();
+    }
+
+    drawLiveChart();
+    drawWave();
+
+    const stats = document.getElementById('liveStats');
+    stats.style.display = 'block';
+    stats.innerHTML = `Points this session: <span>${livePts.length}</span> · max <span>${statMax}%</span> · min <span>${statMin}%</span> · uptime ${s.uptime}s · base ${base}`;
+
+    if(s.source === 'serial' && isHw){
+      agentMeta.innerHTML = '📡 Strap streaming from <strong>' + (s.device||'serial') + '</strong> — sample #' + s.samples;
+    }
+  }
+
+  /* ---- line chart: live heart-attack % ---- */
+  function drawLiveChart(){
+    const svg = document.getElementById('liveSvg');
+    if(!svg) return;
+    const w = 600, h = 180, padL = 36, padR = 14, padT = 14, padB = 22;
+    const plotW = w - padL - padR, plotH = h - padT - padB;
+    const y = v => padT + (1 - v/100) * plotH;
+    const green  = cssVar('--green')  || '#4CE0B3';
+    const amber  = cssVar('--amber')  || '#E8A94C';
+    const red    = cssVar('--red')    || '#FF5C5C';
+    const stroke = cssVar('--stroke') || '#1E2C3B';
+    const soft   = cssVar('--text-soft') || '#7E93A3';
+
+    let g = '';
+    [0,25,50,75,100].forEach(v=>{
+      g += `<line x1="${padL}" y1="${y(v)}" x2="${w-padR}" y2="${y(v)}" stroke="${stroke}" stroke-dasharray="3,4"/>`;
+      g += `<text x="${padL-6}" y="${y(v)+3}" text-anchor="end" font-family="IBM Plex Mono" font-size="9" fill="${soft}">${v}</text>`;
+    });
+    g += `<line x1="${padL}" y1="${y(75)}" x2="${w-padR}" y2="${y(75)}" stroke="${red}" stroke-dasharray="6,4" opacity="0.85"/>`;
+    g += `<line x1="${padL}" y1="${y(50)}" x2="${w-padR}" y2="${y(50)}" stroke="${amber}" stroke-dasharray="4,5" opacity="0.6"/>`;
+
+    if(livePts.length === 1){
+      g += `<circle cx="${padL + plotW/2}" cy="${y(livePts[0].risk)}" r="5" fill="${green}"/>`;
+    } else if(livePts.length > 1){
+      const n = livePts.length;
+      const x = i => padL + (i/(n-1)) * plotW;
+      const path = livePts.map((p,i)=> `${i===0?'M':'L'}${x(i).toFixed(1)},${y(p.risk).toFixed(1)}`).join(' ');
+      g += `<path d="${path}" fill="none" stroke="${green}" stroke-width="2.2" stroke-linejoin="round"/>`;
+      /* endpoint dot */
+      const last = livePts[n-1];
+      g += `<circle cx="${x(n-1)}" cy="${y(last.risk)}" r="4.5" fill="${green}"/>`;
+      g += `<text x="${Math.min(x(n-1)+8, w-padR-24)}" y="${Math.max(y(last.risk)-8, 12)}" font-family="IBM Plex Mono" font-size="10" font-weight="700" fill="${green}">${last.risk}%</text>`;
+    } else {
+      g += `<text x="${w/2}" y="${h/2}" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" fill="${soft}">Waiting for live data…</text>`;
+    }
+    svg.innerHTML = g;
+  }
+
+  /* ---- rhythm strip ---- */
+  function drawWave(){
+    const line = document.getElementById('waveLine');
+    if(!line) return;
+    const n = waveBuf.length;
+    if(n < 2){ line.setAttribute('points',''); return; }
+    const pts = [];
+    for(let i=0;i<n;i++){
+      const x = (i/(n-1)) * 300;
+      const yy = 40 - waveBuf[i] * 30;
+      pts.push(x.toFixed(1) + ',' + Math.max(2, Math.min(78, yy)).toFixed(1));
+    }
+    line.setAttribute('points', pts.join(' '));
+    line.setAttribute('stroke', lastSnap && lastSnap.emergency
+      ? (cssVar('--red') || '#FF5C5C')
+      : (cssVar('--green') || '#4CE0B3'));
+  }
+
+  /* ---- buttons ---- */
+  document.getElementById('connectBtn').addEventListener('click', connectAgent);
+  document.getElementById('disconnectBtn').addEventListener('click', ()=> disconnectAgent(false));
+  agentUrl.addEventListener('keydown', e=>{ if(e.key==='Enter') connectAgent(); });
+
+  document.getElementById('clearLiveChart').addEventListener('click', ()=>{
+    livePts.length = 0; csvLog.length = 0; statMax = statMin = null;
+    document.getElementById('liveStats').style.display = 'none';
+    drawLiveChart();
+  });
+
+  document.getElementById('exportLiveBtn').addEventListener('click', ()=>{
+    if(!csvLog.length) return;
+    const csv = 'time_iso,risk_pct,hr_bpm,spo2,hrv_ms,quality,band\n' + csvLog.join('\n') + '\n';
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'live-agent-log.csv';
+    a.click();
+  });
+
+  drawLiveChart();
+})();
+</script>
+</body>
+</html>

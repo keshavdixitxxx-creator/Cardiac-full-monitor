@@ -1,0 +1,26 @@
+Cardiac Monitor — full project folder
+=====================================
+
+WHAT'S IN HERE
+---------------
+  cardiac-monitor-dashboard_upgrade.html   the full UI (logo intro + 3 screens)
+  agent.py                                 Python agent — run this to serve localhost
+  strap_node.ino                           Arduino sketch for the arm strap
+  requirements.txt                         optional: pyserial + matplotlib
+  README-agent.md                          full docs
+  START.bat                                Windows: double-click to run
+  START.sh                                 Mac/Linux: run  chmod +x START.sh && ./START.sh
+
+HOW TO RUN (localhost, no install needed)
+------------------------------------------
+  1. Double-click  START.bat   (Windows)   — or run:  python agent.py
+  2. Browser opens at  http://localhost:8777
+  3. You'll see the LOGO for ~5 seconds (tap to skip), then the menu:
+       - Simple dashboard   (your original UI)
+       - Problem matcher    (type a problem → dataset line chart)
+       - Live sensor agent  (strap → python → live heart-attack % line)
+  4. With real hardware: pip install -r requirements.txt
+                         flash strap_node.ino, plug USB, run  python agent.py
+
+NOTE: keep all files in this same folder.
+      Educational project only — not a medical device.

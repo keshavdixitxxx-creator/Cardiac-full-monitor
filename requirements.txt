@@ -1,0 +1,5 @@
+# Cardiac Monitor — Python agent dependencies (BOTH OPTIONAL)
+# The agent runs with the standard library alone (web graph + simulator).
+# Install these only for hardware + a local matplotlib window:
+pyserial>=3.5      # strap / USB serial reading
+matplotlib>=3.8     # python agent.py --plot  (local line-chart window)
